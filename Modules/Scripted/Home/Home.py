@@ -3,7 +3,6 @@ import vtk, qt, ctk, slicer
 from slicer.ScriptedLoadableModule import *
 import logging
 from slicer.util import VTKObservationMixin
-# from Resources import HomeResourcesResources
 
 class Home(ScriptedLoadableModule):
   """Uses ScriptedLoadableModule base class, available at:
@@ -12,13 +11,17 @@ class Home(ScriptedLoadableModule):
 
   def __init__(self, parent):
     ScriptedLoadableModule.__init__(self, parent)
-    self.parent.title = "Home" # TODO make this more human readable by adding spaces
+    self.parent.title = "Home"
     self.parent.categories = [""]
     self.parent.dependencies = []
-    self.parent.contributors = ["Sam Horvath (Kitware Inc.)"]
-    self.parent.helpText = """This is the Home module for the custom application"""
-    self.parent.helpText += self.getDefaultModuleDocumentationLink()
-    self.parent.acknowledgementText = """...""" # replace with organization, grant and thanks.
+    self.parent.contributors = ["Ebrahim Ebrahim (Kitware Inc.), Andinet Enquobahrie (Kitware Inc.)"]
+    self.parent.helpText = """This is the Home module for LungAIR"""
+    self.parent.helpText += self.getModuleDocumentationLink()
+    self.parent.acknowledgementText = """(TODO: put NIH grant number here)""" # replace with organization, grant and thanks.
+
+  def getModuleDocumentationLink(self):
+    url = "https://github.com/ebrahimebrahim/lungair-clinical-platform" # Just link to repo for now
+    return f'<p>For more information see the <a href="{url}">code repository</a>.</p>'
 
 
 class HomeWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
@@ -34,32 +37,44 @@ class HomeWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
   def setup(self):
     ScriptedLoadableModuleWidget.setup(self)
 
-    # Load widget from .ui file (created by Qt Designer)
-    self.uiWidget = slicer.util.loadUI(self.resourcePath('UI/Home.ui'))
-    self.layout.addWidget(self.uiWidget)
-    self.ui = slicer.util.childWidgetVariables(self.uiWidget)
+    # (Previously we were loading widget from .ui file; keep this commented out here temporarily)
+    # self.uiWidget = slicer.util.loadUI(self.resourcePath('UI/Home.ui'))
+    # self.layout.addWidget(self.uiWidget)
+    # self.ui = slicer.util.childWidgetVariables(self.uiWidget)
 
-    #Remove unneeded UI elements
+    patientBrowserCollapsible = ctk.ctkCollapsibleButton()
+    patientBrowserCollapsible.text = "Patient Browser"
+    self.layout.addWidget(patientBrowserCollapsible)
+    patientBrowserLayout = qt.QVBoxLayout(patientBrowserCollapsible)
+
+    dataBrowserCollapsible = ctk.ctkCollapsibleButton()
+    dataBrowserCollapsible.text = "Data Browser"
+    self.layout.addWidget(dataBrowserCollapsible)
+    dataBrowserLayout = qt.QVBoxLayout(dataBrowserCollapsible)
+
+    advancedCollapsible = ctk.ctkCollapsibleButton()
+    advancedCollapsible.text = "Advanced"
+    self.layout.addWidget(advancedCollapsible)
+    advancedLayout = qt.QVBoxLayout(advancedCollapsible)
+
+    # Add custom toolbar with a settings button and then hide various Slicer UI elements
     self.modifyWindowUI()
 
-    #Create logic class
+    # Create logic class
     self.logic = HomeLogic()
 
-    #setup scene defaults
-    self.setupNodes()
+    # set up defaults for viewers (this was carried over from SlicerCAT; not sure how much of it is needed)
+    self.logic.setup3DView()
+    self.logic.setupSliceViewers()
+
+    # set up layout
+    self.logic.setupLayout(self.resourcePath("lungair_layout.xml"))
 
     #Dark palette does not propagate on its own?
     self.uiWidget.setPalette(slicer.util.mainWindow().style().standardPalette())
 
     #Apply style
     self.applyApplicationStyle()
-
-
-
-  def setupNodes(self):
-    #Set up the layout / 3D View
-    self.logic.setup3DView()
-    self.logic.setupSliceViewers()
 
 
   def onClose(self, unusedOne, unusedTwo):
@@ -158,13 +173,6 @@ class HomeLogic(ScriptedLoadableModuleLogic):
   https://github.com/Slicer/Slicer/blob/master/Base/Python/slicer/ScriptedLoadableModule.py
   """
 
-  def run(self, inputVolume, outputVolume, imageThreshold, enableScreenshots=0):
-    """
-    Run the actual algorithm
-    """
-
-    pass
-
   def exitApplication(self,status=slicer.util.EXIT_SUCCESS, message=None):
     """Exit application.
     If ``status`` is ``slicer.util.EXIT_SUCCESS``, ``message`` is logged using ``logging.info(message)``
@@ -179,8 +187,6 @@ class HomeLogic(ScriptedLoadableModuleLogic):
       slicer.util.mainWindow().hide()
       slicer.util.exit(slicer.util.EXIT_FAILURE)
     qt.QTimer.singleShot(0, _exitApplication)
-
-
 
   #settings for 3D view
   def setup3DView(self):
@@ -217,6 +223,26 @@ class HomeLogic(ScriptedLoadableModuleLogic):
     # controller.setRulerColor(0) #White ruler
     # controller.setStyleSheet("background-color: #000000")
     # controller.sliceViewLabel = ''
+
+  def setupLayout(self, layout_file_path):
+
+    with open(layout_file_path,"r") as fh:
+      layout_text = fh.read()
+
+    # built-in layout IDs are all below 100, so we can choose any large random number for this one
+    layoutID=501
+
+    layoutManager = slicer.app.layoutManager()
+    layoutManager.layoutLogic().GetLayoutNode().AddLayoutDescription(layoutID, layout_text)
+
+    # set the layout to be the current one
+    layoutManager.setLayout(layoutID)
+
+    # tweak any slice view nodes that were added in the layout
+    for sliceViewName in layoutManager.sliceViewNames():
+      mrmlSliceWidget = layoutManager.sliceWidget(sliceViewName)
+      mrmlSliceWidget.sliceController().sliceOffsetSlider().hide() # Hide the offset slider
+
 
 
 

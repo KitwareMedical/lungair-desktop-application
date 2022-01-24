@@ -1,0 +1,36 @@
+<layout type="horizontal" split="true">
+  <item>
+    <layout type="vertical" split="true">
+      <item>
+        <view class="vtkMRMLSliceNode" singletontag="xray">
+          <property name="orientation" action="default">Axial</property>
+          <property name="viewlabel" action="default">Chest X-Ray</property>
+          <!-- <property name="viewcolor" action="default">#AAFFAA</property> -->
+        </view>
+      </item>
+      <item>
+        <view class="vtkMRMLTableViewNode" singletontag="clinicalData">
+          <property name="viewlabel" action="default">Clinical Data</property>
+          <!-- <property name="viewcolor" action="default">#FFAAAA</property> -->
+        </view>
+      </item>
+    </layout>
+  </item>
+  <item>
+    <layout type="vertical" split="true">
+      <item>
+        <view class="vtkMRMLSliceNode" singletontag="xrayFeatures">
+          <!-- <property name="orientation" action="default">Axial</property> -->
+          <property name="viewlabel" action="default">X-Ray Features</property>
+          <!-- <property name="viewcolor" action="default">#AAFFAA</property> -->
+        </view>
+      </item>
+      <item>
+        <view class="vtkMRMLTableViewNode" singletontag="analysis">
+          <property name="viewlabel" action="default">Analysis Results</property>
+          <!-- <property name="viewcolor" action="default">#FFAAAA</property> -->
+        </view>
+      </item>
+    </layout>
+  </item>
+</layout>
