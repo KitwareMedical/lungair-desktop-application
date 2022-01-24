@@ -20,7 +20,7 @@ class Home(ScriptedLoadableModule):
     self.parent.acknowledgementText = """(TODO: put NIH grant number here)""" # replace with organization, grant and thanks.
 
   def getModuleDocumentationLink(self):
-    url = "https://github.com/ebrahimebrahim/lungair-clinical-platform" # Just link to repo for now
+    url = "https://github.com/KitwareMedical/lungair-desktop-application" # Just link to repo for now
     return f'<p>For more information see the <a href="{url}">code repository</a>.</p>'
 
 
