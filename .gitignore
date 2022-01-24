@@ -1,1 +1,8 @@
+# build artifacts that might be in this directory
 build/
+
+# IDE stuff
+.vscode
+
+# a script I use to speed up testing scripted modules and that I don't want to commit
+cp_things.sh
