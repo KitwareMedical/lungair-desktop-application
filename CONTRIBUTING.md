@@ -1,7 +1,11 @@
 Contributing to LungAIR
 ===============================
 
-  * Submit a feature request or bug, or add to the discussion on the [issue tracker][is].
+This project does not currently accept contributions, as it is still in early stages of rapid development.
+
+This will change at some point.
+
+  <!-- * Submit a feature request or bug, or add to the discussion on the [issue tracker][is].
   * Submit a [Pull Request][pr] to improve LungAIR Clinical Platform.
 
 The PR Process, and Related Gotchas
@@ -29,4 +33,4 @@ It will also simplify the workflow when you are _co-developing_ a branch.
 [fk]: http://help.github.com/forking/
 [push]: https://help.github.com/articles/pushing-to-a-remote/
 [pr]: https://github.com/KitwareMedical/lungair-desktop-application/pulls
-[is]: https://github.com/KitwareMedical/lungair-desktop-application/issues
+[is]: https://github.com/KitwareMedical/lungair-desktop-application/issues -->
