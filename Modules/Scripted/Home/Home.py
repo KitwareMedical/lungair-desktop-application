@@ -42,20 +42,56 @@ class HomeWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     # self.layout.addWidget(self.uiWidget)
     # self.ui = slicer.util.childWidgetVariables(self.uiWidget)
 
+    vboxLayout = self.layout
+
     patientBrowserCollapsible = ctk.ctkCollapsibleButton()
     patientBrowserCollapsible.text = "Patient Browser"
-    self.layout.addWidget(patientBrowserCollapsible)
+    vboxLayout.addWidget(patientBrowserCollapsible)
     patientBrowserLayout = qt.QVBoxLayout(patientBrowserCollapsible)
+
+    explanation =  "In lieu of an EHR-linked patient browser,\n"
+    explanation += "we include for now a directory selector.\n"
+    explanation += "Images and DICOM files in in the directory\n"
+    explanation += "are considered to be chest xrays, while csv\n"
+    explanation += "files are considered to contain clinical data."
+    patientBrowserLayout.addWidget(qt.QLabel(explanation))
+    directoryPathLineEdit = ctk.ctkPathLineEdit()
+    directoryPathLineEdit.filters = ctk.ctkPathLineEdit.Dirs
+    patientBrowserLayout.addWidget(directoryPathLineEdit)
+
+    loadPatientButton = qt.QPushButton("Load Patient")
+    patientBrowserLayout.addWidget(loadPatientButton)
+    loadPatientButton.clicked.connect(self.onLoadPatientClicked)
 
     dataBrowserCollapsible = ctk.ctkCollapsibleButton()
     dataBrowserCollapsible.text = "Data Browser"
-    self.layout.addWidget(dataBrowserCollapsible)
+    vboxLayout.addWidget(dataBrowserCollapsible)
     dataBrowserLayout = qt.QVBoxLayout(dataBrowserCollapsible)
+
+    dataBrowserLayout.addWidget(qt.QLabel("X-rays (by image)"))
+    xrayListWidget = qt.QListWidget()
+    xrayListWidget.itemDoubleClicked.connect(self.onXrayListWidgetDoubleClicked)
+    dataBrowserLayout.addWidget(xrayListWidget)
+
+    dataBrowserLayout.addWidget(qt.QLabel("Clinical Parameters (by day)"))
+    clinicalParametersListWidget = qt.QListWidget()
+    clinicalParametersListWidget.itemDoubleClicked.connect(self.onClinicalParametersListWidgetDoubleClicked)
+    dataBrowserLayout.addWidget(clinicalParametersListWidget)
 
     advancedCollapsible = ctk.ctkCollapsibleButton()
     advancedCollapsible.text = "Advanced"
-    self.layout.addWidget(advancedCollapsible)
-    advancedLayout = qt.QVBoxLayout(advancedCollapsible)
+    vboxLayout.addWidget(advancedCollapsible)
+    advancedLayout = qt.QFormLayout(advancedCollapsible)
+    advancedCollapsible.collapsed = True
+
+    featureComboBox = qt.QComboBox()
+    featureComboBox.currentTextChanged.connect(self.onFeatureComboBoxTextChanged)
+    advancedLayout.addRow("Feature extraction\nstep to display", featureComboBox)
+
+    self.patientBrowserCollapsible = patientBrowserCollapsible
+    self.dataBrowserCollapsible = dataBrowserCollapsible
+    self.advancedCollapsible = advancedCollapsible
+
 
     # Add custom toolbar with a settings button and then hide various Slicer UI elements
     self.modifyWindowUI()
@@ -70,9 +106,6 @@ class HomeWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     # set up layout
     self.logic.setupLayout(self.resourcePath("lungair_layout.xml"))
 
-    #Dark palette does not propagate on its own?
-    self.uiWidget.setPalette(slicer.util.mainWindow().style().standardPalette())
-
     #Apply style
     self.applyApplicationStyle()
 
@@ -82,6 +115,19 @@ class HomeWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
   def cleanup(self):
     pass
+
+  def onLoadPatientClicked(self):
+    print("load patient placeholder")
+
+  def onXrayListWidgetDoubleClicked(self, item):
+    print("item double click placeholder 1:", item)
+
+  def onClinicalParametersListWidgetDoubleClicked(self, item):
+    print("item double click placeholder 2:", item)
+
+  def onFeatureComboBoxTextChanged(self, text):
+    print("text change placeholder:", text)
+
 
   def hideSlicerUI(self):
     slicer.util.setDataProbeVisible(False)
@@ -105,6 +151,7 @@ class HomeWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     slicer.util.setModulePanelTitleVisible(True)
     slicer.util.setPythonConsoleVisible(True)
     slicer.util.setToolbarsVisible(True)
+
 
 
   def modifyWindowUI(self):
