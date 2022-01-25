@@ -26,7 +26,7 @@
         </view>
       </item>
       <item>
-        <view class="vtkMRMLTableViewNode" singletontag="analysis">
+        <view class="vtkMRMLPlotViewNode" singletontag="analysis">
           <property name="viewlabel" action="default">Analysis Results</property>
           <!-- <property name="viewcolor" action="default">#FFAAAA</property> -->
         </view>
