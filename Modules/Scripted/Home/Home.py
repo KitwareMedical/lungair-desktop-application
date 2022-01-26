@@ -3,6 +3,7 @@ import vtk, qt, ctk, slicer
 from slicer.ScriptedLoadableModule import *
 import logging
 from slicer.util import VTKObservationMixin
+from HomeLib import monai_installer
 
 class Home(ScriptedLoadableModule):
   """Uses ScriptedLoadableModule base class, available at:
@@ -87,10 +88,14 @@ class HomeWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     featureComboBox = qt.QComboBox()
     featureComboBox.currentTextChanged.connect(self.onFeatureComboBoxTextChanged)
     advancedLayout.addRow("Feature extraction\nstep to display", featureComboBox)
+    monaiInstallButton = qt.QPushButton("Check for MONAI install")
+    monaiInstallButton.clicked.connect(monai_installer.check_and_install_monai)
+    advancedLayout.addRow(monaiInstallButton)
 
     self.patientBrowserCollapsible = patientBrowserCollapsible
     self.dataBrowserCollapsible = dataBrowserCollapsible
     self.advancedCollapsible = advancedCollapsible
+    self.directoryPathLineEdit = directoryPathLineEdit
 
 
     # Add custom toolbar with a settings button and then hide various Slicer UI elements
@@ -117,7 +122,7 @@ class HomeWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     pass
 
   def onLoadPatientClicked(self):
-    print("load patient placeholder")
+    self.logic.loadPatientFromDirectory(self.directoryPathLineEdit.currentPath)
 
   def onXrayListWidgetDoubleClicked(self, item):
     print("item double click placeholder 1:", item)
@@ -289,6 +294,12 @@ class HomeLogic(ScriptedLoadableModuleLogic):
     for sliceViewName in layoutManager.sliceViewNames():
       mrmlSliceWidget = layoutManager.sliceWidget(sliceViewName)
       mrmlSliceWidget.sliceController().sliceOffsetSlider().hide() # Hide the offset slider
+
+  def loadPatientFromDirectory(self, dir_path):
+    for item_name in os.listdir(dir_path):
+      item_path = os.path.join(dir_path,item_name)
+      if os.path.isfile(item_path):
+        print("PLACEHOLDER: would now add into logic:", item_name)
 
 
 
