@@ -133,7 +133,7 @@ class HomeWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     self.logic.loadPatientFromDirectory(self.directoryPathLineEdit.currentPath)
     self.xrayListWidget.clear()
     for xray in self.logic.xrays:
-      self.xrayListWidget.addItem(xray["filename"])
+      self.xrayListWidget.addItem(xray.name)
 
   def onXrayListWidgetDoubleClicked(self, item):
     self.logic.selectXrayByName(item.text())
@@ -226,7 +226,40 @@ class HomeWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         widget.styleSheet = style
 
 
+class Xray:
+  def __init__(self, name, path, img_tensor):
+    self.name = name
+    self.path = path
+    self.img_tensor = img_tensor
 
+    img_np = img_tensor[0].numpy() # The [0] contracts the single channel dimension, yielding a 2D scalar array for the image
+    self.volume_node = create_volume_node_from_numpy_array(img_np, "LungAIR CXR: "+name)
+
+    self.seg_node = None
+
+  def hasSeg(self):
+    return self.seg_node is not None
+
+  def setSegVisibility(self, visibility:bool):
+    if self.hasSeg():
+      self.seg_node.GetDisplayNode().SetVisibility(visibility)
+
+  def showVolumeNode(self):
+    slicer.util.setSliceViewerLayers(self.volume_node) # Make volume node visible (this is like toggling the show/hide eyeball icon)
+    slicer.util.resetSliceViews() # reset views to show full image
+
+  def addSegmentation(self, seg_mask_tensor):
+    """
+    Takes a tensor seg_mask of shape (H,W) representing a binary image that gives the lung fields.
+    Creates a slicer segmentation object adds it to this xray.
+    """
+    self.seg_mask_tensor = seg_mask_tensor
+    self.seg_node = create_segmentation_node_from_numpy_array(
+      seg_mask_tensor.numpy(),
+      {1:"lung field"}, # TODO replace by left and right lung setup once you fix post processing, and update doc above
+      "LungAIR Seg: "+self.name,
+      self.volume_node
+    )
 
 
 class HomeLogic(ScriptedLoadableModuleLogic):
@@ -322,7 +355,7 @@ class HomeLogic(ScriptedLoadableModuleLogic):
     return True
 
 
-  def loadPatientFromDirectory(self, dir_path):
+  def loadPatientFromDirectory(self, dir_path : str):
     self.xrays = []
     for item_name in os.listdir(dir_path):
       item_path = os.path.join(dir_path,item_name)
@@ -335,55 +368,34 @@ class HomeLogic(ScriptedLoadableModuleLogic):
           img = None
           # print(f"Not loading file {item_name}:", e)
         if img is not None:
-          img_np = img[0].numpy() # The [0] contracts the single channel dimension, yielding a 2D scalar array for the image
-          volume_node = create_volume_node_from_numpy_array(img_np, "LungAIR CXR: "+item_name)
-
-          # TODO create an xray class
-          xray = {
-            "path":item_path,
-            "filename":item_name,
-            "img":img,
-            "volume_node":volume_node
-          }
-
+          xray = Xray(item_name, item_path, img)
           self.xrays.append(xray)
           self.selectXray(xray)
 
-  def selectXray(self, xray):
+  def selectXray(self, xray : Xray):
 
     # Hide segmentation on previously selected xray, if there was one. Show segmentation of newly selected xray, if there is one.
-    if hasattr(self, "selected_xray") and 'seg_node' in self.selected_xray:
-      self.selected_xray['seg_node'].GetDisplayNode().SetVisibility(False)
+    if hasattr(self, "selected_xray"):
+      self.selected_xray.setSegVisibility(False)
     self.selected_xray = xray
-    if 'seg_node' in self.selected_xray:
-      self.selected_xray['seg_node'].GetDisplayNode().SetVisibility(True)
+    self.selected_xray.setSegVisibility(True)
+    self.selected_xray.showVolumeNode()
 
-    volume_node = xray['volume_node']
-    slicer.util.setSliceViewerLayers(volume_node) # Make volume node visible (this is like toggling the show/hide eyeball icon)
-    slicer.util.resetSliceViews() # reset views to show full image
-
-  def selectXrayByName(self, name):
+  def selectXrayByName(self, name : str):
     for xray in self.xrays: # TODO replace self.xrays by map so you don't search
-      if xray['filename'] == name:
+      if xray.name == name:
         self.selectXray(xray)
 
   def segmentSelected(self):
-    if 'seg_node' not in self.selected_xray.keys():
-      img = self.selected_xray['img']
-      seg_pred_mask = self.seg_model.run_inference(img)
-      self.selected_xray['seg_pred_mask'] = seg_pred_mask
-      self.selected_xray['seg_node'] = create_segmentation_node_from_numpy_array(
-        seg_pred_mask.numpy(),
-        {1:"lung field"}, # TODO replace by left and right lung setup once you fix post processing
-        "LungAIR Seg: "+self.selected_xray["filename"],
-        self.selected_xray['volume_node']
-      )
+    if not self.selected_xray.hasSeg():
+      img_tensor = self.selected_xray.img_tensor
+      seg_pred_mask = self.seg_model.run_inference(img_tensor)
+      self.selected_xray.addSegmentation(seg_pred_mask)
 
     # Make all segmentations invisible except the selected one
     for xray in self.xrays:
-      if 'seg_node' in xray.keys():
-        xray['seg_node'].GetDisplayNode().SetVisibility(False)
-    self.selected_xray['seg_node'].GetDisplayNode().SetVisibility(True)
+      xray.setSegVisibility(False)
+    self.selected_xray.setSegVisibility(True)
 
 
 
