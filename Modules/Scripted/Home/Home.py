@@ -3,7 +3,8 @@ import vtk, qt, ctk, slicer
 from slicer.ScriptedLoadableModule import *
 import logging
 from slicer.util import VTKObservationMixin
-from HomeLib import monai_installer
+from HomeLib import dependency_installer
+from HomeLib.image_utils import *
 
 class Home(ScriptedLoadableModule):
   """Uses ScriptedLoadableModule base class, available at:
@@ -58,6 +59,7 @@ class HomeWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     patientBrowserLayout.addWidget(qt.QLabel(explanation))
     directoryPathLineEdit = ctk.ctkPathLineEdit()
     directoryPathLineEdit.filters = ctk.ctkPathLineEdit.Dirs
+    directoryPathLineEdit.currentPath = "/home/ebrahim/Desktop/test_patient" # temporary measure to speed up testing
     patientBrowserLayout.addWidget(directoryPathLineEdit)
 
     loadPatientButton = qt.QPushButton("Load Patient")
@@ -89,13 +91,20 @@ class HomeWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     featureComboBox.currentTextChanged.connect(self.onFeatureComboBoxTextChanged)
     advancedLayout.addRow("Feature extraction\nstep to display", featureComboBox)
     monaiInstallButton = qt.QPushButton("Check for MONAI install")
-    monaiInstallButton.clicked.connect(monai_installer.check_and_install_monai)
+    monaiInstallButton.clicked.connect(dependency_installer.check_and_install_monai)
     advancedLayout.addRow(monaiInstallButton)
+    itkInstallButton = qt.QPushButton("Check for ITK-python install")
+    itkInstallButton.clicked.connect(dependency_installer.check_and_install_itk)
+    advancedLayout.addRow(itkInstallButton)
+    segmentSelectedButton = qt.QPushButton("Segment selected xray")
+    segmentSelectedButton.clicked.connect(self.onSegmentSelectedClicked)
+    advancedLayout.addRow(segmentSelectedButton)
 
     self.patientBrowserCollapsible = patientBrowserCollapsible
     self.dataBrowserCollapsible = dataBrowserCollapsible
     self.advancedCollapsible = advancedCollapsible
     self.directoryPathLineEdit = directoryPathLineEdit
+    self.xrayListWidget = xrayListWidget
 
 
     # Add custom toolbar with a settings button and then hide various Slicer UI elements
@@ -104,12 +113,11 @@ class HomeWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     # Create logic class
     self.logic = HomeLogic()
 
-    # set up defaults for viewers (this was carried over from SlicerCAT; not sure how much of it is needed)
+    # set up logic
     self.logic.setup3DView()
     self.logic.setupSliceViewers()
-
-    # set up layout
     self.logic.setupLayout(self.resourcePath("lungair_layout.xml"))
+    self.logic.setupSegModel(self.resourcePath("PyTorchModels/LungSegmentation/model0018.pth"))
 
     #Apply style
     self.applyApplicationStyle()
@@ -123,9 +131,12 @@ class HomeWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
   def onLoadPatientClicked(self):
     self.logic.loadPatientFromDirectory(self.directoryPathLineEdit.currentPath)
+    self.xrayListWidget.clear()
+    for xray in self.logic.xrays:
+      self.xrayListWidget.addItem(xray["filename"])
 
   def onXrayListWidgetDoubleClicked(self, item):
-    print("item double click placeholder 1:", item)
+    self.logic.selectXrayByName(item.text())
 
   def onClinicalParametersListWidgetDoubleClicked(self, item):
     print("item double click placeholder 2:", item)
@@ -133,18 +144,21 @@ class HomeWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
   def onFeatureComboBoxTextChanged(self, text):
     print("text change placeholder:", text)
 
+  def onSegmentSelectedClicked(self):
+    self.logic.segmentSelected()
+
 
   def hideSlicerUI(self):
     slicer.util.setDataProbeVisible(False)
-    slicer.util.setMenuBarsVisible(False, ignore=['MainToolBar', 'ViewToolBar'])
+    slicer.util.setMenuBarsVisible(False)
     slicer.util.setModuleHelpSectionVisible(False)
     slicer.util.setModulePanelTitleVisible(False)
     slicer.util.setPythonConsoleVisible(False)
     slicer.util.setToolbarsVisible(True)
     mainToolBar = slicer.util.findChild(slicer.util.mainWindow(), 'MainToolBar')
     keepToolbars = [
-      slicer.util.findChild(slicer.util.mainWindow(), 'MainToolBar'),
-      slicer.util.findChild(slicer.util.mainWindow(), 'ViewToolBar'),
+      # slicer.util.findChild(slicer.util.mainWindow(), 'MainToolBar'),
+      # slicer.util.findChild(slicer.util.mainWindow(), 'ViewToolBar'),
       slicer.util.findChild(slicer.util.mainWindow(), 'CustomToolBar'),
       ]
     slicer.util.setToolbarsVisible(False, keepToolbars)
@@ -295,11 +309,81 @@ class HomeLogic(ScriptedLoadableModuleLogic):
       mrmlSliceWidget = layoutManager.sliceWidget(sliceViewName)
       mrmlSliceWidget.sliceController().sliceOffsetSlider().hide() # Hide the offset slider
 
+  def setupSegModel(self, model_path):
+    self.seg_model = None
+    try:
+      import HomeLib.segmentation_model
+    except Exception as e:
+      qt.QMessageBox.critical(slicer.util.mainWindow(), "Error importing segmentation model",
+        "Error importing segmentation model. Is MONAI installed?\nDetails: "+str(e)
+      )
+      return False
+    self.seg_model = HomeLib.segmentation_model.SegmentationModel(model_path)
+    return True
+
+
   def loadPatientFromDirectory(self, dir_path):
+    self.xrays = []
     for item_name in os.listdir(dir_path):
       item_path = os.path.join(dir_path,item_name)
       if os.path.isfile(item_path):
-        print("PLACEHOLDER: would now add into logic:", item_name)
+        if item_name[-4:] != ".png":
+          continue
+        try:
+          img = self.seg_model.load_img(item_path)
+        except Exception as e:
+          img = None
+          # print(f"Not loading file {item_name}:", e)
+        if img is not None:
+          img_np = img[0].numpy() # The [0] contracts the single channel dimension, yielding a 2D scalar array for the image
+          volume_node = create_volume_node_from_numpy_array(img_np, "LungAIR CXR: "+item_name)
+
+          # TODO create an xray class
+          xray = {
+            "path":item_path,
+            "filename":item_name,
+            "img":img,
+            "volume_node":volume_node
+          }
+
+          self.xrays.append(xray)
+          self.selectXray(xray)
+
+  def selectXray(self, xray):
+
+    # Hide segmentation on previously selected xray, if there was one. Show segmentation of newly selected xray, if there is one.
+    if hasattr(self, "selected_xray") and 'seg_node' in self.selected_xray:
+      self.selected_xray['seg_node'].GetDisplayNode().SetVisibility(False)
+    self.selected_xray = xray
+    if 'seg_node' in self.selected_xray:
+      self.selected_xray['seg_node'].GetDisplayNode().SetVisibility(True)
+
+    volume_node = xray['volume_node']
+    slicer.util.setSliceViewerLayers(volume_node) # Make volume node visible (this is like toggling the show/hide eyeball icon)
+    slicer.util.resetSliceViews() # reset views to show full image
+
+  def selectXrayByName(self, name):
+    for xray in self.xrays: # TODO replace self.xrays by map so you don't search
+      if xray['filename'] == name:
+        self.selectXray(xray)
+
+  def segmentSelected(self):
+    if 'seg_node' not in self.selected_xray.keys():
+      img = self.selected_xray['img']
+      seg_pred_mask = self.seg_model.run_inference(img)
+      self.selected_xray['seg_pred_mask'] = seg_pred_mask
+      self.selected_xray['seg_node'] = create_segmentation_node_from_numpy_array(
+        seg_pred_mask.numpy(),
+        {1:"lung field"}, # TODO replace by left and right lung setup once you fix post processing
+        "LungAIR Seg: "+self.selected_xray["filename"],
+        self.selected_xray['volume_node']
+      )
+
+    # Make all segmentations invisible except the selected one
+    for xray in self.xrays:
+      if 'seg_node' in xray.keys():
+        xray['seg_node'].GetDisplayNode().SetVisibility(False)
+    self.selected_xray['seg_node'].GetDisplayNode().SetVisibility(True)
 
 
 

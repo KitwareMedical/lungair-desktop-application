@@ -3,7 +3,7 @@
     <layout type="vertical" split="true">
       <item>
         <view class="vtkMRMLSliceNode" singletontag="xray">
-          <property name="orientation" action="default">Axial</property>
+          <property name="orientation" action="default">Sagittal</property>
           <property name="viewlabel" action="default">Chest X-Ray</property>
           <!-- <property name="viewcolor" action="default">#AAFFAA</property> -->
         </view>
@@ -20,7 +20,7 @@
     <layout type="vertical" split="true">
       <item>
         <view class="vtkMRMLSliceNode" singletontag="xrayFeatures">
-          <!-- <property name="orientation" action="default">Axial</property> -->
+          <property name="orientation" action="default">Sagittal</property>
           <property name="viewlabel" action="default">X-Ray Features</property>
           <!-- <property name="viewcolor" action="default">#AAFFAA</property> -->
         </view>
