@@ -1,63 +1,6 @@
 import numpy as np
 import vtk, slicer
-
-# TODO: why did I have to copy these? Why does LungAIR not have vtk.util available in its python environment?
-from vtkmodules.vtkCommonCore import vtkDataArray, vtkIdTypeArray, vtkLongArray
-VTK_ID_TYPE_SIZE = vtkIdTypeArray().GetDataTypeSize()
-if VTK_ID_TYPE_SIZE == 4:
-    ID_TYPE_CODE = np.int32
-elif VTK_ID_TYPE_SIZE == 8:
-    ID_TYPE_CODE = np.int64
-VTK_LONG_TYPE_SIZE = vtkLongArray().GetDataTypeSize()
-if VTK_LONG_TYPE_SIZE == 4:
-    LONG_TYPE_CODE = np.int32
-    ULONG_TYPE_CODE = np.uint32
-elif VTK_LONG_TYPE_SIZE == 8:
-    LONG_TYPE_CODE = np.int64
-    ULONG_TYPE_CODE = np.uint64
-def get_vtk_array_type(np_array_type):
-    """Returns a VTK typecode given a np array."""
-    # This is a Mapping from np array types to VTK array types.
-    _np_vtk = {np.uint8:vtk.VTK_UNSIGNED_CHAR,
-                np.uint16:vtk.VTK_UNSIGNED_SHORT,
-                np.uint32:vtk.VTK_UNSIGNED_INT,
-                np.uint64:vtk.VTK_UNSIGNED_LONG_LONG,
-                np.int8:vtk.VTK_CHAR,
-                np.int16:vtk.VTK_SHORT,
-                np.int32:vtk.VTK_INT,
-                np.int64:vtk.VTK_LONG_LONG,
-                np.float32:vtk.VTK_FLOAT,
-                np.float64:vtk.VTK_DOUBLE,
-                np.complex64:vtk.VTK_FLOAT,
-                np.complex128:vtk.VTK_DOUBLE}
-    for key, vtk_type in _np_vtk.items():
-        if np_array_type == key or \
-           np.issubdtype(np_array_type, key) or \
-           np_array_type == np.dtype(key):
-            return vtk_type
-    raise TypeError(
-        'Could not find a suitable VTK type for %s' % (str(np_array_type)))
-def get_vtk_to_numpy_typemap():
-    """Returns the VTK array type to np array type mapping."""
-    _vtk_np = {vtk.VTK_BIT:np.uint8, # conversion not implemented
-                vtk.VTK_CHAR:np.int8,
-                vtk.VTK_SIGNED_CHAR:np.int8,
-                vtk.VTK_UNSIGNED_CHAR:np.uint8,
-                vtk.VTK_SHORT:np.int16,
-                vtk.VTK_UNSIGNED_SHORT:np.uint16,
-                vtk.VTK_INT:np.int32,
-                vtk.VTK_UNSIGNED_INT:np.uint32,
-                vtk.VTK_LONG:LONG_TYPE_CODE,
-                vtk.VTK_LONG_LONG:np.int64,
-                vtk.VTK_UNSIGNED_LONG:ULONG_TYPE_CODE,
-                vtk.VTK_UNSIGNED_LONG_LONG:np.uint64,
-                vtk.VTK_ID_TYPE:ID_TYPE_CODE,
-                vtk.VTK_FLOAT:np.float32,
-                vtk.VTK_DOUBLE:np.float64}
-    return _vtk_np
-def get_numpy_array_type(vtk_array_type):
-    """Returns a numpy array typecode given a VTK array type."""
-    return get_vtk_to_numpy_typemap()[vtk_array_type]
+from vtk.util.numpy_support import get_vtk_array_type, get_numpy_array_type
 
 
 # trial and error to get this right :)
@@ -81,7 +24,6 @@ def create_image_data_from_numpy_array(array, oriented : bool, copy = True):
   # https://github.com/Kitware/VTK/blob/master/Wrapping/Python/vtkmodules/util/numpy_support.py
 
   # Get type, e.g. vtk.VTK_FLOAT
-  # vtk_type = vtk.util.numpy_support.get_vtk_array_type(array.dtype) # TODO Why no vtk.util?
   vtk_type = get_vtk_array_type(array.dtype)
 
   # Ensure array was contiguous
