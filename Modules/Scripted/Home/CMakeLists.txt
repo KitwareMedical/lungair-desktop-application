@@ -1,17 +1,22 @@
 #-----------------------------------------------------------------------------
 set(MODULE_NAME Home)
+set(MODULE_LIB HomeLib)
 
 #-----------------------------------------------------------------------------
 set(MODULE_PYTHON_SCRIPTS
   ${MODULE_NAME}.py
+  ${MODULE_LIB}/dependency_installer.py
+  ${MODULE_LIB}/image_utils.py
+  ${MODULE_LIB}/segmentation_model.py
+  ${MODULE_LIB}/segmentation_post_processing.py
   )
 
 set(MODULE_PYTHON_RESOURCES
   Resources/Icons/${MODULE_NAME}.png
   Resources/Icons/Gears.png
-  Resources/UI/${MODULE_NAME}.ui
-  Resources/UI/Settings.ui  
-  Resources/Home.qss  
+  Resources/UI/Settings.ui
+  Resources/Home.qss
+  Resources/PyTorchModels/LungSegmentation/model0018.pth
   )
 
 slicerFunctionAddPythonQtResources(MODULE_PYTHON_QRC_RESOURCES
