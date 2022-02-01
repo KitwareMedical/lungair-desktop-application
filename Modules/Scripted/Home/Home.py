@@ -348,7 +348,7 @@ class HomeLogic(ScriptedLoadableModuleLogic):
       import HomeLib.segmentation_model
     except Exception as e:
       qt.QMessageBox.critical(slicer.util.mainWindow(), "Error importing segmentation model",
-        "Error importing segmentation model. Is MONAI installed?\nDetails: "+str(e)
+        "Error importing segmentation model. Are python dependencies installed?\nDetails: "+str(e)
       )
       return False
     self.seg_model = HomeLib.segmentation_model.SegmentationModel(model_path)

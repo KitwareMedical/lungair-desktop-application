@@ -3,7 +3,6 @@ import itk
 import numpy as np
 import torch
 from collections import OrderedDict
-import matplotlib.pyplot as plt
 
 class SegmentationPostProcessing():
   """
@@ -117,22 +116,3 @@ class SegmentationPostProcessing():
     )
 
     return lr_lung_seg
-
-  def preview_intermediate_steps(self):
-
-    def describe_and_plot(step_name): # prevents some code duplication
-      print(self.intermediate_steps[step_name]['description'])
-      plt.imshow(self.intermediate_steps[step_name]['artifact'])
-      plt.show()
-
-    describe_and_plot('connected_components')
-
-    print(self.intermediate_steps['centroids']['description'])
-    plt.imshow(self.intermediate_steps['connected_components']['artifact'])
-    centroids = self.intermediate_steps['centroids']['artifact']
-    plt.scatter(x = centroids[:,0], y = centroids[:,1])
-    plt.show()
-
-    describe_and_plot('unfilled_lung_segmentation')
-
-    describe_and_plot('filled_lung_segmentation')
