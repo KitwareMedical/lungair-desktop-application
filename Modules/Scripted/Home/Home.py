@@ -276,9 +276,10 @@ class XrayDisplayManager:
     self.xray_composite_node = self.xray_slice_widget.mrmlSliceCompositeNode()
     self.xray_features_composite_node = self.xray_features_slice_widget.mrmlSliceCompositeNode()
 
-    # Stop segmentations from ever showing up in the xray slice view
-    xray_view_seg_displayable_manager = self.xray_slice_view.displayableManagerByClassName("vtkMRMLSegmentationsDisplayableManager2D")
-    xray_view_seg_displayable_manager.SetMRMLScene(None) # This is not a nice hack. Perhaps there is a better way?
+    # Get vtkMRMLSliceNodes. These are often called "view nodes" in the Slicer documentation, so we use that name here.
+    # (Not to be confused with vtkMRMLViewNodes, which are for 3D view rather than slice view.)
+    self.xray_view_node = self.xray_slice_view.mrmlSliceNode()
+    self.xray_features_view_node = self.xray_features_slice_view.mrmlSliceNode()
 
 
   def show_xray(self, xray:Xray):
@@ -290,6 +291,12 @@ class XrayDisplayManager:
   def set_xray_segmentation_visibility(self, xray:Xray, visibility:bool):
     """Show the segmentation of the given in the xray image in the xray features view"""
     if xray.has_seg():
+
+      # The list of view node IDs on a display node is initially empty, which makes the node visible in all views.
+      # Adding a view node ID as we do here makes it so that the node is only visible in the added view.
+      # (this only needs to be done once for the segmentation node, not every time visibility is changed; but for now this is the best place to do it)
+      xray.seg_node.GetDisplayNode().AddViewNodeID(self.xray_features_view_node.GetID())
+
       xray.seg_node.GetDisplayNode().SetVisibility(visibility)
 
 
