@@ -16,6 +16,7 @@ set(MODULE_PYTHON_RESOURCES
   Resources/Icons/Gears.png
   Resources/UI/Settings.ui
   Resources/Home.qss
+  Resources/lungair_layout.xml
   Resources/PyTorchModels/LungSegmentation/model0018.pth
   )
 
