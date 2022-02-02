@@ -227,7 +227,11 @@ class HomeWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
 
 class Xray:
-  def __init__(self, name, path, img_tensor):
+  """
+  Represents one patient xray, including image arrays and references to any associated MRML nodes.
+  Handles creation of associated MRML nodes.
+  """
+  def __init__(self, name:str, path:str, img_tensor):
     self.name = name
     self.path = path
     self.img_tensor = img_tensor
@@ -238,12 +242,13 @@ class Xray:
     self.seg_node = None
 
   def has_seg(self) -> bool:
+    """Whether there is an associated segmentation node"""
     return self.seg_node is not None
 
   def add_segmentation(self, seg_mask_tensor):
     """
-    Takes a tensor seg_mask of shape (H,W) representing a binary image that gives the lung fields.
-    Creates a slicer segmentation object adds it to this xray.
+    Takes a tensor of shape (H,W) representing a binary image that gives the lung fields.
+    Creates an associated slicer segmentation node.
     """
     self.seg_mask_tensor = seg_mask_tensor
     self.seg_node = create_segmentation_node_from_numpy_array(
@@ -254,8 +259,8 @@ class Xray:
     )
 
 class XrayDisplayManager:
-
-  def __init__(self, ):
+  """Handles showing and hiding various aspects of Xray objects, and manages the xray view nodes."""
+  def __init__(self):
     layoutManager = slicer.app.layoutManager()
 
     # Get qMRMLSliceWidgets; the layout names are specified in the layout xml text
@@ -277,11 +282,13 @@ class XrayDisplayManager:
 
 
   def show_xray(self, xray:Xray):
+    """Show the given Xray image in the xray display views"""
     self.xray_composite_node.SetBackgroundVolumeID(xray.volume_node.GetID())
     self.xray_features_composite_node.SetBackgroundVolumeID(xray.volume_node.GetID())
     slicer.util.resetSliceViews() # reset views to show full image
 
   def set_xray_segmentation_visibility(self, xray:Xray, visibility:bool):
+    """Show the segmentation of the given in the xray image in the xray features view"""
     if xray.has_seg():
       xray.seg_node.GetDisplayNode().SetVisibility(visibility)
 
