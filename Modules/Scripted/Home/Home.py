@@ -114,10 +114,10 @@ class HomeWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     self.logic = HomeLogic()
 
     # set up logic
-    self.logic.setup3DView()
-    self.logic.setupSliceViewers()
-    self.logic.setupLayout(self.resourcePath("lungair_layout.xml"))
-    self.logic.setupSegModel(self.resourcePath("PyTorchModels/LungSegmentation/model0018.pth"))
+    self.logic.setup(
+      layout_file_path = self.resourcePath("lungair_layout.xml"),
+      model_path = self.resourcePath("PyTorchModels/LungSegmentation/model0018.pth"),
+    )
 
     #Apply style
     self.applyApplicationStyle()
@@ -237,18 +237,10 @@ class Xray:
 
     self.seg_node = None
 
-  def hasSeg(self):
+  def has_seg(self) -> bool:
     return self.seg_node is not None
 
-  def setSegVisibility(self, visibility:bool):
-    if self.hasSeg():
-      self.seg_node.GetDisplayNode().SetVisibility(visibility)
-
-  def showVolumeNode(self):
-    slicer.util.setSliceViewerLayers(self.volume_node) # Make volume node visible (this is like toggling the show/hide eyeball icon)
-    slicer.util.resetSliceViews() # reset views to show full image
-
-  def addSegmentation(self, seg_mask_tensor):
+  def add_segmentation(self, seg_mask_tensor):
     """
     Takes a tensor seg_mask of shape (H,W) representing a binary image that gives the lung fields.
     Creates a slicer segmentation object adds it to this xray.
@@ -260,6 +252,38 @@ class Xray:
       "LungAIR Seg: "+self.name,
       self.volume_node
     )
+
+class XrayDisplayManager:
+
+  def __init__(self, ):
+    layoutManager = slicer.app.layoutManager()
+
+    # Get qMRMLSliceWidgets; the layout names are specified in the layout xml text
+    self.xray_slice_widget = layoutManager.sliceWidget('xray')
+    self.xray_features_slice_widget = layoutManager.sliceWidget('xrayFeatures')
+
+    # Get qMRMLSliceViews
+    self.xray_slice_view = self.xray_slice_widget.sliceView()
+    self.xray_features_slice_view = self.xray_features_slice_widget.sliceView()
+
+    # Get vtkMRMLSliceCompositeNodes. These are resposnible for putting together background,foreground,
+    # and label layers to create the final slice view image.
+    self.xray_composite_node = self.xray_slice_widget.mrmlSliceCompositeNode()
+    self.xray_features_composite_node = self.xray_features_slice_widget.mrmlSliceCompositeNode()
+
+    # Stop segmentations from ever showing up in the xray slice view
+    xray_view_seg_displayable_manager = self.xray_slice_view.displayableManagerByClassName("vtkMRMLSegmentationsDisplayableManager2D")
+    xray_view_seg_displayable_manager.SetMRMLScene(None) # This is not a nice hack. Perhaps there is a better way?
+
+
+  def show_xray(self, xray:Xray):
+    self.xray_composite_node.SetBackgroundVolumeID(xray.volume_node.GetID())
+    self.xray_features_composite_node.SetBackgroundVolumeID(xray.volume_node.GetID())
+    slicer.util.resetSliceViews() # reset views to show full image
+
+  def set_xray_segmentation_visibility(self, xray:Xray, visibility:bool):
+    if xray.has_seg():
+      xray.seg_node.GetDisplayNode().SetVisibility(visibility)
 
 
 class HomeLogic(ScriptedLoadableModuleLogic):
@@ -287,32 +311,11 @@ class HomeLogic(ScriptedLoadableModuleLogic):
       slicer.util.exit(slicer.util.EXIT_FAILURE)
     qt.QTimer.singleShot(0, _exitApplication)
 
-  #settings for 3D view
-  def setup3DView(self):
-    layoutManager = slicer.app.layoutManager()
-    # layoutManager.setLayout(slicer.vtkMRMLLayoutNode.SlicerLayoutOneUp3DView)
-    # controller = slicer.app.layoutManager().threeDWidget(0).threeDController()
-    # controller.setBlackBackground()
-    # controller.set3DAxisVisible(False)
-    # controller.set3DAxisLabelVisible(False)
-    # controller.setOrientationMarkerType(3)  #Axis marker
-    # controller.setStyleSheet("background-color: #000000")
+  def setup(self, layout_file_path, model_path):
 
-  def setupSliceViewers(self):
-    for name in slicer.app.layoutManager().sliceViewNames():
-        sliceWidget = slicer.app.layoutManager().sliceWidget(name)
-        self.setupSliceViewer(sliceWidget)
-
-  #Settings for slice views
-  def setupSliceViewer(self, sliceWidget):
-    controller = sliceWidget.sliceController()
-    # controller.setOrientationMarkerType(3)  #Axis marker
-    # controller.setRulerType(1)  #Thin ruler
-    # controller.setRulerColor(0) #White ruler
-    # controller.setStyleSheet("background-color: #000000")
-    # controller.sliceViewLabel = ''
-
-  def setupLayout(self, layout_file_path):
+    # --------------
+    # Set up layout
+    # --------------
 
     with open(layout_file_path,"r") as fh:
       layout_text = fh.read()
@@ -331,7 +334,16 @@ class HomeLogic(ScriptedLoadableModuleLogic):
       mrmlSliceWidget = layoutManager.sliceWidget(sliceViewName)
       mrmlSliceWidget.sliceController().sliceOffsetSlider().hide() # Hide the offset slider
 
-  def setupSegModel(self, model_path):
+    # ------------------------
+    # Set up xray display manager
+    # ------------------------
+
+    self.xray_display_manager = XrayDisplayManager()
+
+    # ------------------------
+    # Set up segmentation model
+    # ------------------------
+
     self.seg_model = None
     try:
       import HomeLib.segmentation_model
@@ -365,10 +377,10 @@ class HomeLogic(ScriptedLoadableModuleLogic):
 
     # Hide segmentation on previously selected xray, if there was one. Show segmentation of newly selected xray, if there is one.
     if hasattr(self, "selected_xray"):
-      self.selected_xray.setSegVisibility(False)
+      self.xray_display_manager.set_xray_segmentation_visibility(self.selected_xray, False)
     self.selected_xray = xray
-    self.selected_xray.setSegVisibility(True)
-    self.selected_xray.showVolumeNode()
+    self.xray_display_manager.set_xray_segmentation_visibility(self.selected_xray, True)
+    self.xray_display_manager.show_xray(self.selected_xray)
 
   def selectXrayByName(self, name : str):
     for xray in self.xrays: # TODO replace self.xrays by map so you don't search
@@ -376,15 +388,15 @@ class HomeLogic(ScriptedLoadableModuleLogic):
         self.selectXray(xray)
 
   def segmentSelected(self):
-    if not self.selected_xray.hasSeg():
+    if not self.selected_xray.has_seg():
       img_tensor = self.selected_xray.img_tensor
       seg_pred_mask = self.seg_model.run_inference(img_tensor)
-      self.selected_xray.addSegmentation(seg_pred_mask)
+      self.selected_xray.add_segmentation(seg_pred_mask)
 
     # Make all segmentations invisible except the selected one
     for xray in self.xrays:
-      xray.setSegVisibility(False)
-    self.selected_xray.setSegVisibility(True)
+      self.xray_display_manager.set_xray_segmentation_visibility(xray, False)
+    self.xray_display_manager.set_xray_segmentation_visibility(self.selected_xray, True)
 
 
 
