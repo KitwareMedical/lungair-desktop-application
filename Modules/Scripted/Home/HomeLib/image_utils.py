@@ -6,6 +6,8 @@ from vtk.util.numpy_support import get_vtk_array_type, get_numpy_array_type
 # trial and error to get this right :)
 IJK_TO_RAS_DIRECTIONS = [[1,0,0], [0,-1,0], [0,0,-1]]
 
+# NOTE to anyone thinking of borrowing this code: it may be easier to simply use the built-in utility functions
+# slicer.util.updateVolumeFromArray and slicer.util.updateSegmentBinaryLabelmapFromArray
 
 
 def create_image_data_from_numpy_array(array, oriented : bool, copy = True):
