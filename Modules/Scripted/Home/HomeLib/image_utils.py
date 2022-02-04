@@ -82,7 +82,8 @@ def create_volume_node_from_numpy_array(array, node_name : str):
   volumeNode.SetIJKToRASDirections(IJK_TO_RAS_DIRECTIONS)
   volumeNode.SetAndObserveImageData(imageData)
   volumeNode.CreateDefaultDisplayNodes()
-  volumeNode.CreateDefaultStorageNode() # TODO including this causes memory leak, reported on exit. why?
+  defaultStorageNode = volumeNode.CreateDefaultStorageNode()
+  defaultStorageNode.UnRegister(None) # Needed to avoid memory leak. See https://github.com/Slicer/Slicer/issues/6099
 
   return volumeNode
 
