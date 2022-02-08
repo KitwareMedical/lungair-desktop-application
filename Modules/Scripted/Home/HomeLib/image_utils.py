@@ -4,7 +4,7 @@ from vtk.util.numpy_support import get_vtk_array_type, get_numpy_array_type
 
 
 # trial and error to get this right :)
-IJK_TO_RAS_DIRECTIONS = [[1,0,0], [0,-1,0], [0,0,-1]]
+IJK_TO_RAS_DIRECTIONS = [[-1,0,0], [0,-1,0], [0,0,-1]]
 
 # NOTE to anyone thinking of borrowing this code: it may be easier to simply use the built-in utility functions
 # slicer.util.updateVolumeFromArray and slicer.util.updateSegmentBinaryLabelmapFromArray
@@ -12,6 +12,8 @@ IJK_TO_RAS_DIRECTIONS = [[1,0,0], [0,-1,0], [0,0,-1]]
 
 def create_image_data_from_numpy_array(array, oriented : bool, copy = True):
   """Create a vtk image data object from a numpy array.
+  A 2D numpy array will be turned into a single-coronal-slice vtkImageData.
+  This is being used for loading chest x-rays.
 
   Args:
     array: a contiguous 2D numpy array of scalars to turn into a single-sliced 3D vtkImageData
@@ -25,6 +27,9 @@ def create_image_data_from_numpy_array(array, oriented : bool, copy = True):
   # See the following for hints on how this works:
   # https://github.com/Kitware/VTK/blob/master/Wrapping/Python/vtkmodules/util/numpy_support.py
 
+  if (len(array.shape)!=2):
+    raise ValueError(f"2D array was expected; got {len(array.shape)}D array")
+
   # Get type, e.g. vtk.VTK_FLOAT
   vtk_type = get_vtk_array_type(array.dtype)
 
@@ -36,7 +41,7 @@ def create_image_data_from_numpy_array(array, oriented : bool, copy = True):
   vtk_array.SetNumberOfComponents(1)
   vtk_array.SetNumberOfTuples(array.size)
 
-  # I'm not certain that th following assert is needed, but if it ever fails then look here for hints:
+  # I'm not certain that the following assert is needed, but if it ever fails then look here for hints:
   # https://github.com/Kitware/VTK/blob/0d344f312f143e7266ae10266f01470fb941ec96/Wrapping/Python/vtkmodules/util/numpy_support.py#L168
   # arr_dtype = vtk.util.numpy_support.get_numpy_array_type(vtk_type) # TODO Why no vtk.util?
   arr_dtype = get_numpy_array_type(vtk_type)
@@ -57,7 +62,7 @@ def create_image_data_from_numpy_array(array, oriented : bool, copy = True):
     imageData = slicer.vtkOrientedImageData()
   else:
     imageData = vtk.vtkImageData()
-  imageData.SetDimensions([1] + list(array.shape))
+  imageData.SetDimensions([array.shape[0], 1, array.shape[1]])
   imageData.GetPointData().SetScalars(vtk_array)
 
   return imageData
