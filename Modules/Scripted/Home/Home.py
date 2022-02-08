@@ -252,14 +252,16 @@ class Xray:
     """Whether there is an associated segmentation node"""
     return self.seg_node is not None
 
-  def add_segmentation(self, seg_mask_tensor):
+  def add_segmentation(self):
     """
-    Takes a tensor of shape (H,W) representing a binary image that gives the lung fields.
+    Run segmentation model for this xray if it hasn't already been done.
     Creates an associated slicer segmentation node.
     """
-    self.seg_mask_tensor = seg_mask_tensor
+    if self.has_seg():
+      return
+    self.seg_mask_tensor = self.seg_model.run_inference(self.img_tensor) # a tensor of shape (H,W) representing a binary image that gives the lung fields
     self.seg_node = create_segmentation_node_from_numpy_array(
-      seg_mask_tensor.numpy(),
+      self.seg_mask_tensor.numpy(),
       {1:"lung field"}, # TODO replace by left and right lung setup once you fix post processing, and update doc above
       "LungAIR Seg: "+self.name,
       self.volume_node
@@ -403,10 +405,7 @@ class HomeLogic(ScriptedLoadableModuleLogic):
         self.selectXray(xray)
 
   def segmentSelected(self):
-    if not self.selected_xray.has_seg():
-      img_tensor = self.selected_xray.img_tensor
-      seg_pred_mask = self.seg_model.run_inference(img_tensor)
-      self.selected_xray.add_segmentation(seg_pred_mask)
+    self.selected_xray.add_segmentation()
 
     # Make all segmentations invisible except the selected one
     for xray in self.xrays:
