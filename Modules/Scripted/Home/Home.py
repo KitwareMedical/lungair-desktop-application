@@ -231,13 +231,20 @@ class Xray:
   Represents one patient xray, including image arrays and references to any associated MRML nodes.
   Handles creation of associated MRML nodes.
   """
-  def __init__(self, name:str, path:str, img_tensor):
-    self.name = name
+  def __init__(self, path:str, seg_model):
+    """
+    Args:
+      path: path to the xray file
+      seg_model: an instance of the SegmentationModel to use
+    """
+    self.name = os.path.basename(path)
     self.path = path
-    self.img_tensor = img_tensor
+    self.seg_model = seg_model
 
-    img_np = img_tensor[0].numpy() # The [0] contracts the single channel dimension, yielding a 2D scalar array for the image
-    self.volume_node = create_volume_node_from_numpy_array(img_np, "LungAIR CXR: "+name)
+    self.img_tensor = self.seg_model.load_img(path)
+
+    img_np = self.img_tensor[0].numpy() # The [0] contracts the single channel dimension, yielding a 2D scalar array for the image
+    self.volume_node = create_volume_node_from_numpy_array(img_np, "LungAIR CXR: "+self.name)
 
     self.seg_node = None
 
@@ -360,13 +367,13 @@ class HomeLogic(ScriptedLoadableModuleLogic):
 
     self.seg_model = None
     try:
-      import HomeLib.segmentation_model
+      from HomeLib.segmentation_model import SegmentationModel
     except Exception as e:
       qt.QMessageBox.critical(slicer.util.mainWindow(), "Error importing segmentation model",
         "Error importing segmentation model. Are python dependencies installed?\nDetails: "+str(e)
       )
       return False
-    self.seg_model = HomeLib.segmentation_model.SegmentationModel(model_path)
+    self.seg_model = SegmentationModel(model_path)
     return True
 
 
@@ -377,15 +384,9 @@ class HomeLogic(ScriptedLoadableModuleLogic):
       if os.path.isfile(item_path):
         if item_name[-4:] != ".png":
           continue
-        try:
-          img = self.seg_model.load_img(item_path)
-        except Exception as e:
-          img = None
-          # print(f"Not loading file {item_name}:", e)
-        if img is not None:
-          xray = Xray(item_name, item_path, img)
-          self.xrays.append(xray)
-          self.selectXray(xray)
+        xray = Xray(item_path, self.seg_model)
+        self.xrays.append(xray)
+        self.selectXray(xray)
 
   def selectXray(self, xray : Xray):
 
