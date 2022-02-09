@@ -302,10 +302,19 @@ class Xray:
     - the 0 dimension points towards the bottom of the image, towards patient inferior
     - the 1 dimension points towards the right of the image, towards the patient left
     """
-    # TODO: verify that there is no unhardened transform by checking that GetParentTransformNode() is None
-    # TODO: verify that the underlying vtk image data has Directions matrix being the identity, b/c slicer IJK/RAS doesn't care about it
 
     volume_node = self.volume_node2 # TODO: replace by self.volume_node when ready to swap that back in
+
+    # Verify that there is no unhardened transform, so we can trust vtkMRMLVolumeNode::GetIJKToRASDirections
+    if volume_node.GetParentTransformNode() is not None:
+      raise RuntimeError(f"Volume node {volume_node.GetName()} has an associated transform. Harden the transform before trying to get a numpy array.")
+
+    # Verify that the underlying vtk image data has directions matrix equal to the identity.
+    # (I'm pretty sure the vtkMRMLVolumeNode::Get<*>ToRASDirection functions don't care about the vtkImageData directions matrix)
+    if not volume_node.GetImageData().GetDirectionMatrix().IsIdentity():
+      logging.warning(f"The underlying vtkImageData of volume node {volume_node.GetName()} appears to have a nontrivial direction matrix. "+
+        "Slicer might not provide accurate RAS directions in this situation, so there may be issues with producing a correctly oriented 2D array.")
+
 
     # The vtkMRMLVolumeNode::Get<*>ToRASDirection functions take an output parameter
     k_dir = np.zeros(3)
