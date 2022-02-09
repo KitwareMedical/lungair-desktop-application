@@ -59,7 +59,7 @@ class HomeWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     patientBrowserLayout.addWidget(qt.QLabel(explanation))
     directoryPathLineEdit = ctk.ctkPathLineEdit()
     directoryPathLineEdit.filters = ctk.ctkPathLineEdit.Dirs
-    directoryPathLineEdit.currentPath = "/home/ebrahim/Desktop/test_patient" # temporary measure to speed up testing
+    directoryPathLineEdit.currentPath = "/home/ebrahim/Desktop/test_patient2" # temporary measure to speed up testing
     patientBrowserLayout.addWidget(directoryPathLineEdit)
 
     loadPatientButton = qt.QPushButton("Load Patient")
@@ -226,11 +226,27 @@ class HomeWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         widget.styleSheet = style
 
 
+def create_axial_to_coronal_transform_node():
+  axial_to_coronal_np_matrix = np.array([
+    [1., 0.,  0., 0.],
+    [0., 0., -1., 0.],
+    [0., 1.,  0., 0.],
+    [0., 0.,  0., 1.]
+  ])
+  axial_to_coronal_vtk_matrix = slicer.util.vtkMatrixFromArray(axial_to_coronal_np_matrix)
+  axial_to_coronal_transform_node = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLLinearTransformNode')
+  axial_to_coronal_transform_node.SetName("axial slice to coronal slice")
+  axial_to_coronal_transform_node.SetAndObserveMatrixTransformToParent(axial_to_coronal_vtk_matrix)
+  return axial_to_coronal_transform_node
+
 class Xray:
   """
   Represents one patient xray, including image arrays and references to any associated MRML nodes.
   Handles creation of associated MRML nodes.
   """
+
+  axial_to_coronal_transform_node = None
+
   def __init__(self, path:str, seg_model):
     """
     Args:
@@ -245,6 +261,18 @@ class Xray:
 
     img_np = self.img_tensor[0].numpy() # The [0] contracts the single channel dimension, yielding a 2D scalar array for the image
     self.volume_node = create_volume_node_from_numpy_array(img_np, "LungAIR CXR: "+self.name)
+
+    # TODONOW make this be the actual volume node. right now this is just for while I work on the current commit.
+    self.volume_node2 = slicer.util.loadVolume(path, {"singleFile":True, "name":"LungAIR CXR TEST: "+self.name})
+
+    # Only one of these transform nodes is needed; it is shared among all Xray instances
+    if self.__class__.axial_to_coronal_transform_node is None:
+      self.__class__.axial_to_coronal_transform_node = create_axial_to_coronal_transform_node()
+
+    self.volume_node2.SetAndObserveTransformNodeID(self.__class__.axial_to_coronal_transform_node.GetID())
+
+    # Harden so that we can rely on vtkMRMLVolumeNode::GetIJKToRASDirections to get orientation information
+    self.volume_node2.HardenTransform()
 
     self.seg_node = None
 
@@ -266,6 +294,65 @@ class Xray:
       "LungAIR Seg: "+self.name,
       self.volume_node
     )
+
+  def get_numpy_array(self):
+    """
+    Get a 2D numpy array representation of the xray image.
+    The dimensions follow the standard image-style (rows,columns) format:
+    - the 0 dimension points towards the bottom of the image, towards patient inferior
+    - the 1 dimension points towards the right of the image, towards the patient left
+    """
+    # TODO: verify that there is no unhardened transform by checking that GetParentTransformNode() is None
+    # TODO: verify that the underlying vtk image data has Directions matrix being the identity, b/c slicer IJK/RAS doesn't care about it
+
+    volume_node = self.volume_node2 # TODO: replace by self.volume_node when ready to swap that back in
+
+    # The vtkMRMLVolumeNode::Get<*>ToRASDirection functions take an output parameter
+    k_dir = np.zeros(3)
+    j_dir = np.zeros(3)
+    i_dir = np.zeros(3)
+    volume_node.GetKToRASDirection(k_dir)
+    volume_node.GetJToRASDirection(j_dir)
+    volume_node.GetIToRASDirection(i_dir)
+
+    # The 0,1,2 axes of this numpy array correspond to slicer K,J,I directions respectively.
+    # (See https://discourse.slicer.org/t/why-are-dimensions-transposed-in-arrayfromvolume/21873)
+    array = slicer.util.arrayFromVolume(volume_node)
+
+    # We will attempt to find which axes of the numpy array correspond to certain patient-coordinate-directions
+    array_axis_left = None
+    array_axis_inferior = None
+    left_dir = np.array([-1.,0.,0.])
+    inferior_dir = np.array([0.,0.,-1.])
+
+    # Tolerance for floating point comparisons
+    epsilon = 0.00001
+
+    # Here array_axis is an one of the axes of the numpy array and direction_vector is its direction in RAS coordinates
+    for array_axis, direction_vector in enumerate((k_dir, j_dir, i_dir)):
+      if ((direction_vector-left_dir)<epsilon).all():
+        array_axis_left = array_axis
+      elif ((direction_vector-inferior_dir)<epsilon).all():
+        array_axis_inferior = array_axis
+    if array_axis_left is None or array_axis_inferior is None:
+      raise RuntimeError(f"Volume node {volume_node.GetName()} does not seem to be aligned along the expected axes; "+
+        "unable to provide a numpy array because we cannot determine the standard axis order.")
+
+    assert(all(array_axis in range(3) for array_axis in (array_axis_left, array_axis_inferior)))
+    assert(array_axis_left != array_axis_inferior)
+    other_axes = [array_axis for array_axis in range(3) if array_axis not in (array_axis_left, array_axis_inferior)]
+    assert(len(other_axes)==1)
+    array_axis_other = other_axes[0]
+
+    if array.shape[array_axis_other]!=1:
+      raise RuntimeError(f"Volume node {volume_node.GetName()} seems to have more than one slice in a direction besides RIGHT or SUPERIOR; "+
+        "unable to provide a 2D numpy array for this.")
+
+    return np.transpose(array, axes = (array_axis_other, array_axis_inferior, array_axis_left))[0]
+
+
+
+
 
 class XrayDisplayManager:
   """Handles showing and hiding various aspects of Xray objects, and manages the xray view nodes."""
