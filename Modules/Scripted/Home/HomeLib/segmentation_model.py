@@ -3,23 +3,10 @@
 # This wrapper class will handle loading a model and running inference
 
 import monai
-from typing import Mapping, Hashable, List
 import numpy as np
 import torch
 from .segmentation_post_processing import SegmentationPostProcessing
 
-monai.utils.misc.set_determinism(seed=9274)
-
-# ----- objects needed to define transform_valid (TODO: move to common lib, dealing with pickling issues somehow) -------
-
-def rgb_to_grayscale(x):
-    """Given a numpy array with shape (H,W,C), return "grayscale" one of shape (H,W);
-    behaves as no-op if given array with shape already being (H,W)"""
-    if len(x.shape)==2: return x
-    elif len(x.shape)==3: return x.mean(axis=2)
-    else: raise Exception("rgb_to_grayscale: unexpected number of axes in array")
-
-# -----------------------------------------------------------------------------------------------------------------------
 
 class SegmentationModel:
   def __init__(self, load_path):
@@ -40,44 +27,41 @@ class SegmentationModel:
     self.best_validation_epoch = model_dict['best_validation_epoch']
     self.image_size = model_dict['image_size']
 
-    # TODO: Currently we hardcode the transform because unpickling needs to be done in the same environment pickling is done in.
-    # Find a better solution so that you can ensure the environment doesn't change and you can load the same transform.
-    self.transform_valid = monai.transforms.Compose([
-      monai.transforms.LoadImageD(keys = ['img']), # A few shenzhen images get mysteriously value-inverted with readers other than itkreader
-      monai.transforms.LambdaD(keys=['img'], func = rgb_to_grayscale), # A few of the shenzhen imgs are randomly RGB encoded rather than grayscale colormap
-      monai.transforms.TransposeD(keys = ['img', 'mo_seg_left', 'mo_seg_right', 'sh_seg'], indices = (1,0), allow_missing_keys=True),
-      monai.transforms.AddChannelD(keys = ['img']),
-      monai.transforms.ResizeD(
-          keys = ['img', 'seg'],
-          spatial_size=(self.image_size,self.image_size),
-          mode = ['bilinear', 'nearest'],
-          allow_missing_keys=True,
-          align_corners=[False, None]
+    # Transforms a given image to the input format expected by the segmentation network
+    self.transform = monai.transforms.Compose([
+      monai.transforms.CastToType(dtype=np.float32), # TODO dtype should have been included in the model_dict
+      monai.transforms.AddChannel(),
+      monai.transforms.Resize(
+        spatial_size=(self.image_size,self.image_size),
+        mode = 'bilinear',
+        align_corners=False
       ),
-      monai.transforms.ToTensorD(keys = ['img', 'seg'], allow_missing_keys=True),
+      monai.transforms.ToTensor()
     ])
 
     self.seg_post_process = SegmentationPostProcessing()
 
-  def load_img(self, filepath):
-    """Run the transform that comes with the model, using it to load an image from file. Probably returns tensor with channel dimension."""
-    img = self.transform_valid({'img':filepath})['img']
-    return img
-
   def run_inference(self, img):
     """
-    Execute segmentation model on an image, given as a tensor of shape (channels, height, width).
-    The segmentation model includes the network and the post-processing.
+    Execute segmentation model on a chest xray, given as an array of shape (height, width).
+
+    The image axes are assumed to be in "matrix" order, with the origin in the upper left of the image:
+    - The 0 axis should go along the height of the radiograph, towards patient-inferior
+    - The 1 axis should go along the width of the radiograph, towards patient-left/image-right
+
+    The segmentation model includes the network and the post-processing. (But post-processing is SKIPPED for now; TODO.)
     Returns segmentation, of shape (num_segments, height, width).
     """
     self.seg_net.eval()
-    seg_pred = self.seg_net(img.unsqueeze(0))[0]
+    img_input = self.transform(img)
+    seg_pred = self.seg_net(img_input.unsqueeze(0))[0]
 
-    # assumption at the moment is that we 2-channel image out (i.e. purely binary segmentation was done)
+    # assumption at the moment is that we have 2-channel image out (i.e. purely binary segmentation was done)
     assert(seg_pred.shape[0]==2)
+
     _, max_indices = seg_pred.max(dim=0)
     seg_pred_mask = (max_indices==1).type(torch.uint8)
-    return seg_pred_mask # TODO returning early because post processing causes crash. why crash?
+    return seg_pred_mask # TODO returning early because post processing causes crash due to ITK python issues
 
     seg_pred_processed = self.seg_post_process(seg_pred_mask)
 

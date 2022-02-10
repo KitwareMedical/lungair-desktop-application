@@ -257,22 +257,16 @@ class Xray:
     self.path = path
     self.seg_model = seg_model
 
-    self.img_tensor = self.seg_model.load_img(path)
-
-    img_np = self.img_tensor[0].numpy() # The [0] contracts the single channel dimension, yielding a 2D scalar array for the image
-    self.volume_node = create_volume_node_from_numpy_array(img_np, "LungAIR CXR: "+self.name)
-
-    # TODONOW make this be the actual volume node. right now this is just for while I work on the current commit.
-    self.volume_node2 = slicer.util.loadVolume(path, {"singleFile":True, "name":"LungAIR CXR TEST: "+self.name})
+    self.volume_node = slicer.util.loadVolume(path, {"singleFile":True, "name":"LungAIR CXR: "+self.name})
 
     # Only one of these transform nodes is needed; it is shared among all Xray instances
     if self.__class__.axial_to_coronal_transform_node is None:
       self.__class__.axial_to_coronal_transform_node = create_axial_to_coronal_transform_node()
 
-    self.volume_node2.SetAndObserveTransformNodeID(self.__class__.axial_to_coronal_transform_node.GetID())
+    self.volume_node.SetAndObserveTransformNodeID(self.__class__.axial_to_coronal_transform_node.GetID())
 
     # Harden so that we can rely on vtkMRMLVolumeNode::GetIJKToRASDirections to get orientation information
-    self.volume_node2.HardenTransform()
+    self.volume_node.HardenTransform()
 
     self.seg_node = None
 
@@ -287,7 +281,8 @@ class Xray:
     """
     if self.has_seg():
       return
-    self.seg_mask_tensor = self.seg_model.run_inference(self.img_tensor) # a tensor of shape (H,W) representing a binary image that gives the lung fields
+
+    self.seg_mask_tensor = self.seg_model.run_inference(self.get_numpy_array()) # a tensor of shape (H,W) representing a binary image that gives the lung fields
     self.seg_node = create_segmentation_node_from_numpy_array(
       self.seg_mask_tensor.numpy(),
       {1:"lung field"}, # TODO replace by left and right lung setup once you fix post processing, and update doc above
@@ -295,7 +290,7 @@ class Xray:
       self.volume_node
     )
 
-  def get_numpy_array(self):
+  def get_numpy_array(self, dtype=np.float32):
     """
     Get a 2D numpy array representation of the xray image.
     The dimensions follow the standard image-style (rows,columns) format:
@@ -303,7 +298,7 @@ class Xray:
     - the 1 dimension points towards the right of the image, towards the patient left
     """
 
-    volume_node = self.volume_node2 # TODO: replace by self.volume_node when ready to swap that back in
+    volume_node = self.volume_node
 
     # Verify that there is no unhardened transform, so we can trust vtkMRMLVolumeNode::GetIJKToRASDirections
     if volume_node.GetParentTransformNode() is not None:
@@ -314,7 +309,6 @@ class Xray:
     if not volume_node.GetImageData().GetDirectionMatrix().IsIdentity():
       logging.warning(f"The underlying vtkImageData of volume node {volume_node.GetName()} appears to have a nontrivial direction matrix. "+
         "Slicer might not provide accurate RAS directions in this situation, so there may be issues with producing a correctly oriented 2D array.")
-
 
     # The vtkMRMLVolumeNode::Get<*>ToRASDirection functions take an output parameter
     k_dir = np.zeros(3)
@@ -327,15 +321,36 @@ class Xray:
     # The 0,1,2 axes of this numpy array correspond to slicer K,J,I directions respectively.
     # (See https://discourse.slicer.org/t/why-are-dimensions-transposed-in-arrayfromvolume/21873)
     array = slicer.util.arrayFromVolume(volume_node)
+    assert(len(array.shape) >= 3)
 
-    # We will attempt to find which axes of the numpy array correspond to certain patient-coordinate-directions
+    # There could also be an additional axis for image color channels; we deal with that possibility here
+    if len(array.shape) == 4:
+      num_scalar_components = volume_node.GetImageData().GetNumberOfScalarComponents()
+
+      # If the array has an extra axis then I assume it is due to multiple components in the scalar array of the underlying vtkImageData
+      assert(num_scalar_components > 1)
+      assert(num_scalar_components == array.shape[3])
+
+      # If the number of components is 3 then it's probably just color channels-- but if not then further investigation is definitely needed.
+      if num_scalar_components != 3:
+        raise RuntimeError(f"The underlying vtkImageData of volume node {volume_node.GetName()} has {num_scalar_components} scalar components. "+
+          "We do not know how to interpret this; expected 1 or 3 components.")
+
+      # Convert to grayscale
+      array = array.mean(axis=3, dtype=dtype)
+
+    elif len(array.shape) != 3:
+      raise RuntimeError(f"Getting an array from volume node {volume_node.GetName()} resulted in the shape {list(array.shape)}, "+
+        "which has an unexpected number of axes. Expected 3 or 4 axes.")
+
+
+    # Attempt to find which axes of the numpy array correspond to certain patient-coordinate-directions
     array_axis_left = None
     array_axis_inferior = None
     left_dir = np.array([-1.,0.,0.])
     inferior_dir = np.array([0.,0.,-1.])
 
-    # Tolerance for floating point comparisons
-    epsilon = 0.00001
+    epsilon = 0.00001 # Tolerance for floating point comparisons
 
     # Here array_axis is an one of the axes of the numpy array and direction_vector is its direction in RAS coordinates
     for array_axis, direction_vector in enumerate((k_dir, j_dir, i_dir)):
@@ -347,6 +362,7 @@ class Xray:
       raise RuntimeError(f"Volume node {volume_node.GetName()} does not seem to be aligned along the expected axes; "+
         "unable to provide a numpy array because we cannot determine the standard axis order.")
 
+    # Verify that there left and inferior axes are distinct and that the dimension along the remaining third axis is 1
     assert(all(array_axis in range(3) for array_axis in (array_axis_left, array_axis_inferior)))
     assert(array_axis_left != array_axis_inferior)
     other_axes = [array_axis for array_axis in range(3) if array_axis not in (array_axis_left, array_axis_inferior)]
@@ -357,7 +373,8 @@ class Xray:
       raise RuntimeError(f"Volume node {volume_node.GetName()} seems to have more than one slice in a direction besides RIGHT or SUPERIOR; "+
         "unable to provide a 2D numpy array for this.")
 
-    return np.transpose(array, axes = (array_axis_other, array_axis_inferior, array_axis_left))[0]
+    array_2D_oriented = np.transpose(array, axes = (array_axis_other, array_axis_inferior, array_axis_left))[0]
+    return array_2D_oriented.astype(dtype)
 
 
 
