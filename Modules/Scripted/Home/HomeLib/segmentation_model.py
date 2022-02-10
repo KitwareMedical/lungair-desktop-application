@@ -49,20 +49,31 @@ class SegmentationModel:
     - The 0 axis should go along the height of the radiograph, towards patient-inferior
     - The 1 axis should go along the width of the radiograph, towards patient-left/image-right
 
-    The segmentation model includes the network and the post-processing. (But post-processing is SKIPPED for now; TODO.)
-    Returns segmentation, of shape (num_segments, height, width).
+    The segmentation model should include post-processing but this is SKIPPED for now; TODO.
+    Currently it's just a segmentation network.
+
+    Returns (seg_mask, model_to_img_matrix), where:
+      seg_mask is a torch tensor of shape (height, width), a binary label mask indicating the lung field
+      model_to_img_matrix is a 2D numpy array representing the linear transform from the coordinate space of the segmentation model
+        output to the original coordinate space of the given array img.
     """
+    if len(img.shape) != 2:
+      raise ValueError("img must be a 2D array")
+
     self.seg_net.eval()
     img_input = self.transform(img)
-    seg_pred = self.seg_net(img_input.unsqueeze(0))[0]
+    seg_net_output = self.seg_net(img_input.unsqueeze(0))[0]
 
     # assumption at the moment is that we have 2-channel image out (i.e. purely binary segmentation was done)
-    assert(seg_pred.shape[0]==2)
+    assert(seg_net_output.shape[0]==2)
 
-    _, max_indices = seg_pred.max(dim=0)
-    seg_pred_mask = (max_indices==1).type(torch.uint8)
-    return seg_pred_mask # TODO returning early because post processing causes crash due to ITK python issues
+    _, max_indices = seg_net_output.max(dim=0)
+    seg_mask = (max_indices==1).type(torch.uint8)
 
-    seg_pred_processed = self.seg_post_process(seg_pred_mask)
+    model_to_img_matrix = np.diag(np.array(img.shape)/self.image_size)
 
-    return seg_pred_processed
+    return seg_mask, model_to_img_matrix # TODO returning early because post processing causes crash due to ITK python issues
+
+    seg_processed = self.seg_post_process(seg_mask)
+
+    return seg_processed, model_to_img_matrix

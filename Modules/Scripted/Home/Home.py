@@ -226,6 +226,14 @@ class HomeWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         widget.styleSheet = style
 
 
+def create_linear_transform_node_from_matrix(matrix, node_name):
+  """Given a 3D affine transform as a 4x4 matrix, create a vtkMRMLTransformNode in the scene return it."""
+  vtk_matrix = slicer.util.vtkMatrixFromArray(matrix)
+  transform_node = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLLinearTransformNode')
+  transform_node.SetName(node_name)
+  transform_node.SetAndObserveMatrixTransformToParent(vtk_matrix)
+  return transform_node
+
 def create_axial_to_coronal_transform_node():
   axial_to_coronal_np_matrix = np.array([
     [1., 0.,  0., 0.],
@@ -233,11 +241,17 @@ def create_axial_to_coronal_transform_node():
     [0., 1.,  0., 0.],
     [0., 0.,  0., 1.]
   ])
-  axial_to_coronal_vtk_matrix = slicer.util.vtkMatrixFromArray(axial_to_coronal_np_matrix)
-  axial_to_coronal_transform_node = slicer.mrmlScene.AddNewNodeByClass('vtkMRMLLinearTransformNode')
-  axial_to_coronal_transform_node.SetName("axial slice to coronal slice")
-  axial_to_coronal_transform_node.SetAndObserveMatrixTransformToParent(axial_to_coronal_vtk_matrix)
-  return axial_to_coronal_transform_node
+  return create_linear_transform_node_from_matrix(axial_to_coronal_np_matrix, "axial slice to coronal slice")
+
+def create_coronal_plane_transform_node_from_2x2(matrix, node_name):
+  """Given a 2D linear transform as a 2x2 matrix, create a transform node that carries out the transform within each coronal slice
+  The vtkMRMLTransformNode is added to the scene and returned."""
+
+  # The [2,0] is a the "S,R" coordinates in "R,A,S". The np.ix_([2,0],[2,0]) allows us to select the S,R submatrix.
+  affine_transform = np.identity(4)
+  affine_transform[np.ix_([2,0],[2,0])] = matrix
+  return create_linear_transform_node_from_matrix(affine_transform, node_name)
+
 
 class Xray:
   """
@@ -282,13 +296,17 @@ class Xray:
     if self.has_seg():
       return
 
-    self.seg_mask_tensor = self.seg_model.run_inference(self.get_numpy_array()) # a tensor of shape (H,W) representing a binary image that gives the lung fields
+    self.seg_mask_tensor, model_to_image_matrix = self.seg_model.run_inference(self.get_numpy_array())
+
     self.seg_node = create_segmentation_node_from_numpy_array(
       self.seg_mask_tensor.numpy(),
       {1:"lung field"}, # TODO replace by left and right lung setup once you fix post processing, and update doc above
       "LungAIR Seg: "+self.name,
       self.volume_node
     )
+
+    self.model_to_image_transform_node = create_coronal_plane_transform_node_from_2x2(model_to_image_matrix, "LungAIR model to image transform: "+self.name)
+    self.seg_node.SetAndObserveTransformNodeID(self.model_to_image_transform_node.GetID())
 
   def get_numpy_array(self, dtype=np.float32):
     """
@@ -342,7 +360,6 @@ class Xray:
     elif len(array.shape) != 3:
       raise RuntimeError(f"Getting an array from volume node {volume_node.GetName()} resulted in the shape {list(array.shape)}, "+
         "which has an unexpected number of axes. Expected 3 or 4 axes.")
-
 
     # Attempt to find which axes of the numpy array correspond to certain patient-coordinate-directions
     array_axis_left = None
