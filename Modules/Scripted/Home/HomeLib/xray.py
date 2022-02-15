@@ -157,8 +157,26 @@ class Xray:
       self.volume_node
     )
 
-    self.model_to_image_transform_node = create_coronal_plane_transform_node_from_2x2(model_to_image_matrix, "LungAIR model to image transform: "+self.name)
-    self.seg_node.SetAndObserveTransformNodeID(self.model_to_image_transform_node.GetID())
+    # TODO explain this better?
+    # We will apply create_coronal_plane_transform_node_from_2x2 to the 2x2 model_to_image_matrix
+    # This will first yield an affine 3D transform (4x4 matrix) that carries out our desired 2D linear transform in the coronal plane
+    # What remains is then to align the segmentation node to the same RAS coordinates that the volume node is in
+    # To do this, we must apply the transform from volume IJK space to volume RAS space,
+    # but we need to take into account that the segmentations, in their vtkOrientedImageData, are already oriented so that their IJK
+    # directions match the volume node's RAS directions.
+    # If the IJK-RAS matrix is a euclidean transform then we could summarize the situation simply:
+    #   segmentations have the correct orientation, but not the correct spacing or origin.
+    # In any case, what's needed is to apply the IJK-RAS transform *without* the axis-orientation part, hence the following.
+    ijkToRas = vtk.vtkMatrix4x4()
+    self.volume_node.GetIJKToRASMatrix(ijkToRas)
+    ijkToRasDirInverse = vtk.vtkMatrix4x4()
+    self.volume_node.GetIJKToRASDirectionMatrix(ijkToRasDirInverse)
+    ijkToRasWithoutDir = vtk.vtkMatrix4x4()
+    vtk.vtkMatrix4x4.Multiply4x4(ijkToRas, ijkToRasDirInverse, ijkToRasWithoutDir)
+
+    self.model_to_ras_transform_node = create_coronal_plane_transform_node_from_2x2(model_to_image_matrix, "LungAIR model to image transform: "+self.name)
+    self.model_to_ras_transform_node.ApplyTransformMatrix(ijkToRasWithoutDir)
+    self.seg_node.SetAndObserveTransformNodeID(self.model_to_ras_transform_node.GetID())
 
   def get_numpy_array(self, dtype=np.float32):
     """
