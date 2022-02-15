@@ -302,12 +302,11 @@ class HomeLogic(ScriptedLoadableModuleLogic):
     self.xrays = []
     for item_name in os.listdir(dir_path):
       item_path = os.path.join(dir_path,item_name)
-      if os.path.isfile(item_path):
-        if item_name[-4:] != ".png":
-          continue
-        xray = Xray(item_path, self.seg_model)
-        self.xrays.append(xray)
-        self.selectXray(xray)
+      loaded_xrays = load_xrays(item_path, self.seg_model)
+      if len(loaded_xrays)==0:
+        raise RuntimeError("Failed to load xray(s) from path", item_path)
+      self.xrays.extend(loaded_xrays)
+      self.selectXray(loaded_xrays[0])
 
   def selectXray(self, xray : Xray):
 

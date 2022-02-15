@@ -1,3 +1,4 @@
+from email.mime import image
 import logging
 import os
 import numpy as np
@@ -30,6 +31,32 @@ def create_coronal_plane_transform_node_from_2x2(matrix, node_name):
   affine_transform[np.ix_([2,0],[2,0])] = matrix
   return create_linear_transform_node_from_matrix(affine_transform, node_name)
 
+def load_xrays(path:str, seg_model, image_format=None):
+  """
+  Load xrays from a given path, returning a list of Xray objects.
+  This handles the creation of the needed MRML nodes and their alignment to the coordinate system.
+
+  Args:
+      path: path to the xray image
+      image_format: xray image format; "png" or "dicom". Default behavior is to decide based on path extension
+      seg_model: an instance of the SegmentationModel to use
+  """
+  if image_format is None:
+    if path[-4:] == ".png":
+      image_format = "png"
+    else:
+      image_format = "dicom"
+
+  name = os.path.basename(path)
+  if image_format=="png":
+    volume_node = slicer.util.loadVolume(path, {"singleFile":True, "name":"LungAIR CXR: "+name})
+    return [Xray(name, volume_node, seg_model)]
+  elif image_format=="dicom":
+    raise NotImplementedError()
+  else:
+    raise ValueError("Unrecognized image_format.")
+
+
 
 class Xray:
   """
@@ -39,17 +66,18 @@ class Xray:
 
   axial_to_coronal_transform_node = None
 
-  def __init__(self, path:str, seg_model):
+  def __init__(self, name:str, volume_node, seg_model):
     """
     Args:
-      path: path to the xray file
+      name: name to be used in names of other associated objects (e.g. segmentation node)
       seg_model: an instance of the SegmentationModel to use
+      volume_node: a vtkMRMLVolumeNode containing the xray image data. It should be a 1-volume slice.
+        The single slice is expected to be an axial slice, as often happens when 2D images are loaded as volume nodes.
+        A transform will be used to rotate it so that it becomes a coronal slice.
     """
-    self.name = os.path.basename(path)
-    self.path = path
+    self.name = name
     self.seg_model = seg_model
-
-    self.volume_node = slicer.util.loadVolume(path, {"singleFile":True, "name":"LungAIR CXR: "+self.name})
+    self.volume_node = volume_node
 
     # Only one of these transform nodes is needed; it is shared among all Xray instances
     if self.__class__.axial_to_coronal_transform_node is None:
