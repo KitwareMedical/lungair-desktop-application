@@ -3,17 +3,13 @@ import vtk, slicer
 from vtk.util.numpy_support import get_vtk_array_type, get_numpy_array_type
 
 
-# trial and error to get this right :)
-IJK_TO_RAS_DIRECTIONS = [[-1,0,0], [0,-1,0], [0,0,-1]]
-
 # NOTE to anyone thinking of borrowing this code: it may be easier to simply use the built-in utility functions
 # slicer.util.updateVolumeFromArray and slicer.util.updateSegmentBinaryLabelmapFromArray
 
 
 def create_image_data_from_numpy_array(array, oriented : bool, copy = True):
   """Create a vtk image data object from a numpy array.
-  A 2D numpy array will be turned into a single-coronal-slice vtkImageData.
-  This is being used for loading chest x-rays.
+  A 2D numpy array will be turned into a single-axial-slice vtkImageData.
 
   Args:
     array: a contiguous 2D numpy array of scalars to turn into a single-sliced 3D vtkImageData
@@ -62,17 +58,18 @@ def create_image_data_from_numpy_array(array, oriented : bool, copy = True):
     imageData = slicer.vtkOrientedImageData()
   else:
     imageData = vtk.vtkImageData()
-  imageData.SetDimensions([array.shape[0], 1, array.shape[1]])
+  imageData.SetDimensions([array.shape[0], array.shape[1], 1])
   imageData.GetPointData().SetScalars(vtk_array)
 
   return imageData
 
 
-def create_volume_node_from_numpy_array(array, node_name : str):
+def create_volume_node_from_numpy_array(array, ijk_to_ras_directions, node_name : str):
   """Create a volume node and add it to the scene.
 
   Args:
     array: a contiguous 2D numpy array of scalars to turn into a single-slice volume node
+    ijk_to_ras_directions: a list of three RAS-direction vectors, one for each axis of the array
     node_name: string
 
   Returns: the added vtkMRMLScalarVolumeNode
@@ -84,7 +81,7 @@ def create_volume_node_from_numpy_array(array, node_name : str):
   volumeNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLScalarVolumeNode", node_name)
   volumeNode.SetOrigin([0.,0.,0.])
   volumeNode.SetSpacing([1.,1.,1.])
-  volumeNode.SetIJKToRASDirections(IJK_TO_RAS_DIRECTIONS)
+  volumeNode.SetIJKToRASDirections(ijk_to_ras_directions)
   volumeNode.SetAndObserveImageData(imageData)
   volumeNode.CreateDefaultDisplayNodes()
   defaultStorageNode = volumeNode.CreateDefaultStorageNode()
@@ -104,12 +101,15 @@ def create_segmentation_node_from_numpy_array(array, class_names : dict, node_na
 
   Returns: the added vtkMRMLSegmentationNode
   """
+  ijk_to_ras_directions = np.zeros((3,3))
+  vol_node.GetIJKToRASDirections(ijk_to_ras_directions)
+
   segNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLSegmentationNode", node_name)
   segNode.SetReferenceImageGeometryParameterFromVolumeNode(vol_node)
   segNode.CreateDefaultDisplayNodes()
   for class_label in class_names.keys():
     binary_labelmap_array = (array==class_label).astype('int8')
     orientedImageData = create_image_data_from_numpy_array(binary_labelmap_array, oriented = True)
-    orientedImageData.SetDirections(IJK_TO_RAS_DIRECTIONS)
+    orientedImageData.SetDirections(ijk_to_ras_directions)
     segNode.AddSegmentFromBinaryLabelmapRepresentation(orientedImageData, class_names[class_label])
   return segNode

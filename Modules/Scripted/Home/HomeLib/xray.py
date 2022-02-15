@@ -3,6 +3,7 @@ import logging
 import os
 import numpy as np
 import slicer
+import vtk
 from .image_utils import create_segmentation_node_from_numpy_array
 
 def create_linear_transform_node_from_matrix(matrix, node_name):
@@ -31,6 +32,44 @@ def create_coronal_plane_transform_node_from_2x2(matrix, node_name):
   affine_transform[np.ix_([2,0],[2,0])] = matrix
   return create_linear_transform_node_from_matrix(affine_transform, node_name)
 
+def load_dicom_dir_using_plugin(dicomDataDir, pluginName, quiet = True):
+  """Load from a DICOM directory using a specific DICOMPlugin, returning a list of the loaded nodes.
+  To see the available DICOMPlugins, look at slicer.modules.dicomPlugins.keys()."""
+
+  loadedNodes = []
+  @vtk.calldata_type(vtk.VTK_OBJECT)
+  def onNodeAdded(caller, event, calldata):
+    node = calldata
+    if not isinstance(node, slicer.vtkMRMLStorageNode) and not isinstance(node, slicer.vtkMRMLDisplayNode):
+      loadedNodes.append(node)
+  sceneObserverTag = slicer.mrmlScene.AddObserver(slicer.vtkMRMLScene.NodeAddedEvent, onNodeAdded)
+
+  plugin = slicer.modules.dicomPlugins[pluginName]()
+  from DICOMLib import DICOMUtils
+  with DICOMUtils.TemporaryDICOMDatabase() as db:
+    DICOMUtils.importDicom(dicomDataDir, db)
+    patientUIDs = db.patients()
+    for patientUID in patientUIDs:
+      patientUIDstr = str(patientUID)
+      studies = db.studiesForPatient(patientUIDstr)
+      series = [db.seriesForStudy(study) for study in studies]
+      seriesUIDs = [uid for uidList in series for uid in uidList]
+      fileLists = []
+      for seriesUID in seriesUIDs:
+        fileLists.append(db.filesForSeries(seriesUID))
+      loadables = plugin.examineForImport(fileLists)
+      for loadable in loadables:
+        plugin.load(loadable)
+
+      if not quiet:
+        print("Patient with UID",patientUIDstr)
+        print("  Studies:", studies)
+        print("  Series:", series)
+        print("  fileLists:", fileLists)
+
+  slicer.mrmlScene.RemoveObserver(sceneObserverTag)
+  return loadedNodes
+
 def load_xrays(path:str, seg_model, image_format=None):
   """
   Load xrays from a given path, returning a list of Xray objects.
@@ -52,7 +91,14 @@ def load_xrays(path:str, seg_model, image_format=None):
     volume_node = slicer.util.loadVolume(path, {"singleFile":True, "name":"LungAIR CXR: "+name})
     return [Xray(name, volume_node, seg_model)]
   elif image_format=="dicom":
-    raise NotImplementedError()
+    loaded_nodes = load_dicom_dir_using_plugin(path, "DICOMScalarVolumePlugin")
+    loaded_xrays = []
+    for node in loaded_nodes:
+      if node.GetClassName()!="vtkMRMLScalarVolumeNode":
+        logging.warning("Somehow load_dicom_dir_using_plugin added an unexpected node type; see node ID "+node.GetID())
+      else:
+        loaded_xrays.append(Xray(name, node, seg_model))
+    return loaded_xrays
   else:
     raise ValueError("Unrecognized image_format.")
 
@@ -175,7 +221,7 @@ class Xray:
 
     epsilon = 0.00001 # Tolerance for floating point comparisons
 
-    # Here array_axis is an one of the axes of the numpy array and direction_vector is its direction in RAS coordinates
+    # Here array_axis is one of the axes of the numpy array and direction_vector is its direction in RAS coordinates
     for array_axis, direction_vector in enumerate((k_dir, j_dir, i_dir)):
       if ((direction_vector-left_dir)<epsilon).all():
         array_axis_left = array_axis
@@ -185,7 +231,7 @@ class Xray:
       raise RuntimeError(f"Volume node {volume_node.GetName()} does not seem to be aligned along the expected axes; "+
         "unable to provide a numpy array because we cannot determine the standard axis order.")
 
-    # Verify that there left and inferior axes are distinct and that the dimension along the remaining third axis is 1
+    # Verify that the left and inferior axes are distinct and that the dimension along the remaining third axis is 1
     assert(all(array_axis in range(3) for array_axis in (array_axis_left, array_axis_inferior)))
     assert(array_axis_left != array_axis_inferior)
     other_axes = [array_axis for array_axis in range(3) if array_axis not in (array_axis_left, array_axis_inferior)]
