@@ -1,8 +1,8 @@
-cmake_minimum_required(VERSION 3.13.4)
+cmake_minimum_required(VERSION 3.16.3...3.19.7 FATAL_ERROR)
 
-# Enable C++11
+# Enable C++14
 if(NOT DEFINED CMAKE_CXX_STANDARD)
-  set(CMAKE_CXX_STANDARD 11)
+  set(CMAKE_CXX_STANDARD 14)
 endif()
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -13,7 +13,7 @@ if(NOT DEFINED slicersources_SOURCE_DIR)
   # Download Slicer sources and set variables slicersources_SOURCE_DIR and slicersources_BINARY_DIR
   FetchContent_Populate(slicersources
     GIT_REPOSITORY git://github.com/Slicer/Slicer
-    GIT_TAG        e32fa814fecdc73cf817141ce0d36d0a088e3881
+    GIT_TAG        6aa3918eb4ffa8b8f306d3f4c5a990a9c5abe1b4
     GIT_PROGRESS   1
     )
 else()
@@ -52,7 +52,7 @@ set(Slicer_ITK_ADDITIONAL_MODULES
   )
 
 if(NOT CMAKE_CONFIGURATION_TYPES)
-  set(Slicer_DEFAULT_BUILD_TYPE "Release")
+  set(Slicer_DEFAULT_BUILD_TYPE "Debug")
 endif()
 include(SlicerInitializeBuildType)
 include(SlicerInitializeReleaseType)
