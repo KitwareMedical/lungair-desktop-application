@@ -9,6 +9,7 @@ set(MODULE_PYTHON_SCRIPTS
   ${MODULE_LIB}/image_utils.py
   ${MODULE_LIB}/segmentation_model.py
   ${MODULE_LIB}/segmentation_post_processing.py
+  ${MODULE_LIB}/xray.py
   )
 
 set(MODULE_PYTHON_RESOURCES
