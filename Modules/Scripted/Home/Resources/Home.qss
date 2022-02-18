@@ -1,29 +1,42 @@
-  QPushButton {
-      border: 1px solid #60A7E5;
-      border-radius: 3px;
-      background-color: qlineargradient(x1: 0, y1: 1, x2: 0, y2: 0,
-                                        stop: 0 rgba(108,185,252,1), stop: 1 rgba(96,167,229,1));
-      min-width: 80px;
-      min-height: 24px;
-      color: white;
-  }
+QWidget {
+    background-color: #B9BAA3
+}
 
-  QPushButton:hover {
-      background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
-                                        stop: 0 rgba(118,180,244,1), stop: 1 rgba(144,203,255,1));
-  }
+QPushButton {
+    border: 1px solid #181F1C;
+    border-radius: 5px;
+    background-color: #785589;
+    min-width: 80px;
+    min-height: 24px;
+    color: white;
+}
 
-  QPushButton:pressed {
-      background-color: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
-                                        stop: 0 rgba(108,185,252,1), stop: 1 rgba(96,167,229,1));
-  }
+QPushButton:hover {
+    background-color: #B47EB3;
+}
 
-  QPushButton:disabled {
-      background-color: #CDCDCD;
-      border: 1px solid #999999;
-      color: #777777;
-  }
+QPushButton:pressed {
+    background-color: #BE97C6
+}
 
-  QComboBox {
-      min-height: 24px;
-  }
+QPushButton:disabled {
+    background-color: #CDCDCD;
+    border: 1px solid #999999;
+    color: #777777;
+}
+
+QComboBox {
+    background: #D6D5C9;
+}
+QAbstractItemView { /*The popup of a QComboBox*/
+    border: 2px solid #D6D5C9;
+    selection-background-color: #B47EB3;
+}
+
+QListWidget {
+    background: #D6D5C9;
+}
+
+QTableWidget {
+    background: #D6D5C9;
+}
