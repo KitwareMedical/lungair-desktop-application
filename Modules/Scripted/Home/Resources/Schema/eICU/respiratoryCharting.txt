@@ -1,0 +1,7 @@
+respchartid	int4	10	 √ 		null		
+patientunitstayid	int4	10	 √ 		null		
+respchartoffset	int4	10	 √ 		null		
+respchartentryoffset	int4	10	 √ 		null		
+respcharttypecat	varchar	255	 √ 		null		
+respchartvaluelabel	varchar	255	 √ 		null		
+respchartvalue	varchar	1000	 √ 		null		

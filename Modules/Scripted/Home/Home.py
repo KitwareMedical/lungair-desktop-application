@@ -50,18 +50,22 @@ class HomeWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     patientBrowserCollapsible = ctk.ctkCollapsibleButton()
     patientBrowserCollapsible.text = "Patient Browser"
     vboxLayout.addWidget(patientBrowserCollapsible)
-    patientBrowserLayout = qt.QVBoxLayout(patientBrowserCollapsible)
+    patientBrowserLayout = qt.QFormLayout(patientBrowserCollapsible)
 
     explanation =  "In lieu of an EHR-linked patient browser,\n"
     explanation += "we include for now a directory selector.\n"
     explanation += "Images and DICOM files in in the directory\n"
     explanation += "are considered to be chest xrays, while csv\n"
     explanation += "files are considered to contain clinical data."
-    patientBrowserLayout.addWidget(qt.QLabel(explanation))
-    directoryPathLineEdit = ctk.ctkPathLineEdit()
-    directoryPathLineEdit.filters = ctk.ctkPathLineEdit.Dirs
-    directoryPathLineEdit.currentPath = "/home/ebrahim/Desktop/test_patient2" # temporary measure to speed up testing
-    patientBrowserLayout.addWidget(directoryPathLineEdit)
+    patientBrowserLayout.addRow(qt.QLabel(explanation))
+    xrayDirectoryPathLineEdit = ctk.ctkPathLineEdit()
+    xrayDirectoryPathLineEdit.filters = ctk.ctkPathLineEdit.Dirs
+    xrayDirectoryPathLineEdit.currentPath = "/home/ebrahim/Desktop/test_patient2" # temporary measure to speed up testing
+    csvDirectoryPathLineEdit = ctk.ctkPathLineEdit()
+    csvDirectoryPathLineEdit.filters = ctk.ctkPathLineEdit.Dirs
+    csvDirectoryPathLineEdit.currentPath = "/home/ebrahim/data/eICU/eICU-Original-Data" # temporary measure to speed up testing
+    patientBrowserLayout.addRow("XRay Image Directory", xrayDirectoryPathLineEdit)
+    patientBrowserLayout.addRow("eICU Data Directory", csvDirectoryPathLineEdit)
 
     loadPatientButton = qt.QPushButton("Load Patient")
     patientBrowserLayout.addWidget(loadPatientButton)
@@ -91,12 +95,14 @@ class HomeWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     featureComboBox = qt.QComboBox()
     featureComboBox.currentTextChanged.connect(self.onFeatureComboBoxTextChanged)
     advancedLayout.addRow("Feature extraction\nstep to display", featureComboBox)
-    monaiInstallButton = qt.QPushButton("Check for MONAI install")
-    monaiInstallButton.clicked.connect(dependency_installer.check_and_install_monai)
-    advancedLayout.addRow(monaiInstallButton)
-    itkInstallButton = qt.QPushButton("Check for ITK-python install")
-    itkInstallButton.clicked.connect(dependency_installer.check_and_install_itk)
-    advancedLayout.addRow(itkInstallButton)
+    def add_install_button(package_name:str, install_function:str):
+      installButton = qt.QPushButton(f"Check for {package_name} install")
+      installButton.clicked.connect(lambda unused_arg : install_function())
+      advancedLayout.addRow(installButton)
+    add_install_button("MONAI", dependency_installer.check_and_install_monai)
+    add_install_button("ITK-python", dependency_installer.check_and_install_itk)
+    add_install_button("pandas", dependency_installer.check_and_install_pandas)
+    add_install_button("matplotlib", dependency_installer.check_and_install_matplotlib)
     segmentSelectedButton = qt.QPushButton("Segment selected xray")
     segmentSelectedButton.clicked.connect(self.onSegmentSelectedClicked)
     advancedLayout.addRow(segmentSelectedButton)
@@ -104,7 +110,8 @@ class HomeWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     self.patientBrowserCollapsible = patientBrowserCollapsible
     self.dataBrowserCollapsible = dataBrowserCollapsible
     self.advancedCollapsible = advancedCollapsible
-    self.directoryPathLineEdit = directoryPathLineEdit
+    self.xrayDirectoryPathLineEdit = xrayDirectoryPathLineEdit
+    self.csvDirectoryPathLineEdit = csvDirectoryPathLineEdit
     self.xrayListWidget = xrayListWidget
 
 
@@ -131,10 +138,12 @@ class HomeWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     pass
 
   def onLoadPatientClicked(self):
-    self.logic.loadPatientFromDirectory(self.directoryPathLineEdit.currentPath)
+    self.logic.loadXraysFromDirectory(self.xrayDirectoryPathLineEdit.currentPath)
     self.xrayListWidget.clear()
     for xray in self.logic.xrays:
       self.xrayListWidget.addItem(xray.name)
+
+    self.logic.loadEICUFromDirectory(self.csvDirectoryPathLineEdit.currentPath, self.resourcePath("Schema/eICU"))
 
   def onXrayListWidgetDoubleClicked(self, item):
     self.logic.selectXrayByName(item.text())
@@ -291,14 +300,25 @@ class HomeLogic(ScriptedLoadableModuleLogic):
       from HomeLib.segmentation_model import SegmentationModel
     except Exception as e:
       qt.QMessageBox.critical(slicer.util.mainWindow(), "Error importing segmentation model",
-        "Error importing segmentation model. Are python dependencies installed?\nDetails: "+str(e)
+        "Error importing segmentation model. If python dependencies are not installed, install them and restart the application. \nDetails: "+str(e)
       )
       return False
     self.seg_model = SegmentationModel(model_path)
+
+    # ------------------------
+    # Check for eicu dependencies
+    # ------------------------
+    try:
+      from HomeLib.eicu import Eicu
+    except Exception as e:
+      qt.QMessageBox.critical(slicer.util.mainWindow(), "Error importing eICU interface class",
+        "Error importing eICU interface class. If python dependencies are not installed, install them and restart the application. \nDetails: "+str(e)
+      )
+      return False
+
     return True
 
-
-  def loadPatientFromDirectory(self, dir_path : str):
+  def loadXraysFromDirectory(self, dir_path : str):
     self.xrays = []
     for item_name in os.listdir(dir_path):
       item_path = os.path.join(dir_path,item_name)
@@ -329,6 +349,31 @@ class HomeLogic(ScriptedLoadableModuleLogic):
     for xray in self.xrays:
       self.xray_display_manager.set_xray_segmentation_visibility(xray, False)
     self.xray_display_manager.set_xray_segmentation_visibility(self.selected_xray, True)
+
+  def loadEICUFromDirectory(self, dir_path : str, schema_dir : str):
+    """ As a placeholder to get some EHR data to play with, we use the eICU dataset.
+    See https://eicu-crd.mit.edu/about/eicu/
+    It's not NICU-focused or even pediatric-focused, but it's something to work with for now.
+
+    Args:
+      dir_path : path to the directory that contains eICU tables as csv.gz files.
+      schema_dir : path to the directory that contains table schema text files; see EICU class documentation for details.
+    """
+    from HomeLib.eicu import Eicu
+    self.eicu = Eicu(dir_path, schema_dir)
+    self.unitstay_id = self.eicu.get_random_unitstay()
+    print(f"We will pretend that this patient is {self.eicu.get_patient_id_from_unitstay(self.unitstay_id)} from the eICU dataset,"
+      + f" with unit stay ID {self.unitstay_id}.")
+
+
+    # TODO instead of printing this information out or saving a plot to disk, find a way to get this information into the application
+    fio2_data, average_fio2, figure = self.eicu.process_fio2_data_for_unitstay(self.unitstay_id)
+    print(f"Average FiO2 for this patient: {average_fio2}")
+
+    plot_path = os.path.join(slicer.util.settingsValue("DefaultScenePath", None), "plot.png")
+    figure.savefig(plot_path)
+    print("Saved FiO2 plot to", plot_path)
+
 
 
 

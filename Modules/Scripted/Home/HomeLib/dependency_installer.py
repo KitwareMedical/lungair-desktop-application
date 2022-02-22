@@ -1,45 +1,37 @@
-import slicer, qt
+import slicer, qt, importlib, functools
 
-def check_and_install_monai(self):
+def check_and_install_package(module_names, pip_install_name):
   """
-  Check if monai is installed, and if not then prompt user to possibly attempt an install.
-  Returns whether monai is present at the end.
+  Check if given module can be imported, and if not then prompt user to possibly attempt an install.
+
+  Args:
+    module_names: a list of strings for the modules for which import needs to succeed
+    pip_install_name: the name of the package to install using pip in order to make the import succeed
+      (or whatever text should follow "pip install" in the installation command)
+  Returns whether the import can succeed at the end.
   """
   try:
-    import monai, skimage, tqdm
-    slicer.util.messageBox("MONAI found! Version: " + str(monai.__version__))
+    modules = []
+    for module_name in module_names:
+      modules.append(importlib.import_module(module_name))
+    version_text = '\n'.join([f'  {module_name} version: {module.__version__}' for module, module_name in zip(modules, module_names)])
+    slicer.util.infoDisplay("Modules found!\n" + version_text, "Modules Found")
     return True
-  except ModuleNotFoundError:
-    wantInstall = qt.QMessageBox.question(slicer.util.mainWindow(), "Missing Dependency", "MONAI or a related dependency was not found. Install it?")
-    if wantInstall == qt.QMessageBox.Yes:
-      slicer.util.pip_install("monai[skimage,tqdm]")
+  except ModuleNotFoundError as e1:
+    wantInstall = slicer.util.confirmYesNoDisplay(f"Package was not found. Install it?\nDetails of missing import: {e1}", "Missing Dependency")
+    if wantInstall:
+      slicer.util.pip_install(pip_install_name)
       try:
-        import monai, skimage, tqdm
-        slicer.util.messageBox("Finished installing MONAI.")
+        for module_name in module_names:
+          importlib.import_module(module_name)
+        slicer.util.infoDisplay("Finished installing.", "Install Success")
         return True
-      except ModuleNotFoundError as e:
-        qt.QMessageBox.critical(slicer.util.mainWindow(), "MONAI Install Error", "Unable to install MONAI. Check the console for details.")
-        print(e)
+      except ModuleNotFoundError as e2:
+        slicer.util.errorDisplay("Unable to install package. Check the console for details.", "Install Error")
+        print(e2)
         return False
 
-def check_and_install_itk(self):
-  """
-  Check if itk is installed, and if not then prompt user to possibly attempt an install.
-  Returns whether itk is present at the end.
-  """
-  try:
-    import itk
-    slicer.util.messageBox("ITK found! Version: " + str(itk.__version__))
-    return True
-  except ModuleNotFoundError:
-    wantInstall = qt.QMessageBox.question(slicer.util.mainWindow(), "Missing Dependency", "ITK or a related dependency was not found. Install it?")
-    if wantInstall == qt.QMessageBox.Yes:
-      slicer.util.pip_install("itk")
-      try:
-        import itk
-        slicer.util.messageBox("Finished installing ITK.")
-        return True
-      except ModuleNotFoundError as e:
-        qt.QMessageBox.critical(slicer.util.mainWindow(), "ITK Install Error", "Unable to install ITK. Check the console for details.")
-        print(e)
-        return False
+check_and_install_monai = functools.partial(check_and_install_package, ["monai", "skimage", "tqdm"], "monai[skimage,tqdm]")
+check_and_install_itk = functools.partial(check_and_install_package, ["itk"], "itk")
+check_and_install_pandas = functools.partial(check_and_install_package, ["pandas"], "pandas")
+check_and_install_matplotlib = functools.partial(check_and_install_package, ["matplotlib"], "matplotlib")

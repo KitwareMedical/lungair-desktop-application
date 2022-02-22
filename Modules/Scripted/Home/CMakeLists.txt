@@ -10,6 +10,7 @@ set(MODULE_PYTHON_SCRIPTS
   ${MODULE_LIB}/segmentation_model.py
   ${MODULE_LIB}/segmentation_post_processing.py
   ${MODULE_LIB}/xray.py
+  ${MODULE_LIB}/eicu.py
   )
 
 set(MODULE_PYTHON_RESOURCES
@@ -19,6 +20,9 @@ set(MODULE_PYTHON_RESOURCES
   Resources/Home.qss
   Resources/lungair_layout.xml
   Resources/PyTorchModels/LungSegmentation/model0018.pth
+  Resources/Schema/eICU/patient.txt
+  Resources/Schema/eICU/respiratoryCareSchema.txt
+  Resources/Schema/eICU/respiratoryCharting.txt
   )
 
 slicerFunctionAddPythonQtResources(MODULE_PYTHON_QRC_RESOURCES
