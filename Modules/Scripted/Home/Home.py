@@ -282,8 +282,25 @@ class HomeLogic(ScriptedLoadableModuleLogic):
 
     # tweak any slice view nodes that were added in the layout
     for sliceViewName in layoutManager.sliceViewNames():
-      mrmlSliceWidget = layoutManager.sliceWidget(sliceViewName)
-      mrmlSliceWidget.sliceController().sliceOffsetSlider().hide() # Hide the offset slider
+      sliceWidget = layoutManager.sliceWidget(sliceViewName)
+
+      # See http://apidocs.slicer.org/master/classqMRMLViewControllerBar.html
+      # for some of the available accessors to the widgets in top bar
+      sliceController = sliceWidget.sliceController()
+
+      sliceController.sliceOffsetSlider().hide()
+      sliceController.pinButton().hide()
+
+    # we use plotview widgets as placeholders that we can replace with our own custom view node
+    # TODONOW replace them with your custome view node
+
+
+    # ------------------------
+    # Set up workspace directory
+    # ------------------------
+
+    self.workspace_dir = os.path.join(slicer.util.settingsValue("DefaultScenePath", None), "LungAIR-Application-Workspace")
+    os.makedirs(self.workspace_dir, exist_ok=True)
 
     # ------------------------
     # Set up xray display manager
