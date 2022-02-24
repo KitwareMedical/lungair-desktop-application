@@ -281,6 +281,8 @@ class HomeLogic(ScriptedLoadableModuleLogic):
     # set the layout to be the current one
     layoutManager.setLayout(layoutID)
 
+    bar_widget_color = "656DA4"
+
     # tweak any slice view nodes that were added in the layout
     for sliceViewName in layoutManager.sliceViewNames():
       sliceWidget = layoutManager.sliceWidget(sliceViewName)
@@ -293,6 +295,7 @@ class HomeLogic(ScriptedLoadableModuleLogic):
       sliceController.pinButton().hide()
 
       barWidget = sliceWidget.sliceController().barWidget()
+      barWidget.setStyleSheet(f"background-color: #{bar_widget_color}; color: #FFFFFF;")
       resetViewButton = [child for child in barWidget.children() if child.name=="FitToWindowToolButton"][0]
       resetViewButton.toolTip = "<p>Reset X-Ray view to fill the viewer.</p>"
 
@@ -373,6 +376,15 @@ class HomeLogic(ScriptedLoadableModuleLogic):
         "Error importing eICU interface class"
       )
       return False
+
+    # ------------------------
+    # Adjust python console colors
+    # ------------------------
+
+    for child in slicer.util.mainWindow().children():
+      if child.name == "PythonConsoleDockWidget":
+        child.setStyleSheet(f"background-color: #FFFFFF")
+
 
     return True
 
