@@ -299,11 +299,6 @@ class HomeLogic(ScriptedLoadableModuleLogic):
       resetViewButton = [child for child in barWidget.children() if child.name=="FitToWindowToolButton"][0]
       resetViewButton.toolTip = "<p>Reset X-Ray view to fill the viewer.</p>"
 
-      # For some reason the top bar of slice view widgets and plotview widgets have different alignments.
-      # This gives them more matching alignments, but something is still different under the hood
-      # See https://github.com/Slicer/Slicer/blob/757038b21a7b5720a37620d4a739a6f4ec83dedc/Libs/MRML/Widgets/qMRMLViewControllerBar.cxx#L99-L149
-      sliceController.barLayout().setAlignment(sliceController.viewLabel(), qt.Qt.AlignLeft)
-
     self.clinical_parameters_widget = None
     self.risk_analysis_widget = None
     for i in range(layoutManager.plotViewCount):
@@ -319,7 +314,15 @@ class HomeLogic(ScriptedLoadableModuleLogic):
       # so we don't actually care about the plot view
       plotWidget.plotView().hide()
 
-      for widget in plotWidget.plotController().barWidget().children():
+      barWidget = plotWidget.plotController().barWidget()
+      barWidget.setStyleSheet(f"background-color: #{bar_widget_color}; color: #FFFFFF;")
+
+      # This removes the stretch that was added at
+      # https://github.com/Slicer/Slicer/blob/d3b8e33a8a2f5a4cb73a0060e34513eb8573c12b/Libs/MRML/Widgets/qMRMLPlotViewControllerWidget.cxx#L110
+      # which is necessary to get the bar widgets to have a consistent appearance
+      barWidget.layout().takeAt(barWidget.layout().count()-1)
+
+      for widget in barWidget.children():
         if not widget.isWidgetType():
           continue
         if widget.name not in ["MaximizeViewButton", "ViewLabel"]:
