@@ -1,3 +1,4 @@
+from genericpath import exists
 import os
 import vtk, qt, ctk, slicer
 from slicer.ScriptedLoadableModule import *
@@ -291,8 +292,45 @@ class HomeLogic(ScriptedLoadableModuleLogic):
       sliceController.sliceOffsetSlider().hide()
       sliceController.pinButton().hide()
 
-    # we use plotview widgets as placeholders that we can replace with our own custom view node
-    # TODONOW replace them with your custome view node
+      barWidget = sliceWidget.sliceController().barWidget()
+      resetViewButton = [child for child in barWidget.children() if child.name=="FitToWindowToolButton"][0]
+      resetViewButton.toolTip = "<p>Reset X-Ray view to fill the viewer.</p>"
+
+      # For some reason the top bar of slice view widgets and plotview widgets have different alignments.
+      # This gives them more matching alignments, but something is still different under the hood
+      # See https://github.com/Slicer/Slicer/blob/757038b21a7b5720a37620d4a739a6f4ec83dedc/Libs/MRML/Widgets/qMRMLViewControllerBar.cxx#L99-L149
+      sliceController.barLayout().setAlignment(sliceController.viewLabel(), qt.Qt.AlignLeft)
+
+    self.clinical_parameters_widget = None
+    self.risk_analysis_widget = None
+    for i in range(layoutManager.plotViewCount):
+      plotWidget = layoutManager.plotWidget(i)
+      if plotWidget.name == 'qMRMLPlotWidgetClinicalParameters':
+        self.clinical_parameters_widget = plotWidget
+      elif plotWidget.name == 'qMRMLPlotWidgetRiskAnalysis':
+        self.risk_analysis_widget = plotWidget
+      else:
+        raise logging.warn("Warning: Found an unexpected qMRMLPlotWidget; there may be UI setup issues.")
+
+      # we use plotview widgets as placeholders that we can replace with our own custom "view",
+      # so we don't actually care about the plot view
+      plotWidget.plotView().hide()
+
+      for widget in plotWidget.plotController().barWidget().children():
+        if not widget.isWidgetType():
+          continue
+        if widget.name not in ["MaximizeViewButton", "ViewLabel"]:
+          widget.hide()
+
+    if self.clinical_parameters_widget is None:
+      raise RuntimeError("Unable to find Clinical Parameters widget; UI setup has failed.")
+    if self.risk_analysis_widget is None:
+      raise RuntimeError("Unable to find Clinical Parameters widget; UI setup has failed.")
+
+    self.clinical_parameters_tabWidget = qt.QTabWidget()
+    self.risk_analysis_tabWidget = qt.QTabWidget()
+    self.clinical_parameters_widget.layout().addWidget(self.clinical_parameters_tabWidget)
+    self.risk_analysis_widget.layout().addWidget(self.risk_analysis_tabWidget)
 
 
     # ------------------------
@@ -316,8 +354,9 @@ class HomeLogic(ScriptedLoadableModuleLogic):
     try:
       from HomeLib.segmentation_model import SegmentationModel
     except Exception as e:
-      qt.QMessageBox.critical(slicer.util.mainWindow(), "Error importing segmentation model",
-        "Error importing segmentation model. If python dependencies are not installed, install them and restart the application. \nDetails: "+str(e)
+      slicer.util.errorDisplay(
+        "Error importing segmentation model. If python dependencies are not installed, install them and restart the application. \nDetails: "+str(e),
+        "Error importing segmentation model"
       )
       return False
     self.seg_model = SegmentationModel(model_path)
@@ -327,9 +366,11 @@ class HomeLogic(ScriptedLoadableModuleLogic):
     # ------------------------
     try:
       from HomeLib.eicu import Eicu
+      import matplotlib
     except Exception as e:
-      qt.QMessageBox.critical(slicer.util.mainWindow(), "Error importing eICU interface class",
-        "Error importing eICU interface class. If python dependencies are not installed, install them and restart the application. \nDetails: "+str(e)
+      slicer.util.errorDisplay(
+        "Error importing eICU interface class. If python dependencies are not installed, install them and restart the application. \nDetails: "+str(e),
+        "Error importing eICU interface class"
       )
       return False
 
@@ -382,14 +423,31 @@ class HomeLogic(ScriptedLoadableModuleLogic):
     print(f"We will pretend that this patient is {self.eicu.get_patient_id_from_unitstay(self.unitstay_id)} from the eICU dataset,"
       + f" with unit stay ID {self.unitstay_id}.")
 
-
-    # TODO instead of printing this information out or saving a plot to disk, find a way to get this information into the application
     fio2_data, average_fio2, figure = self.eicu.process_fio2_data_for_unitstay(self.unitstay_id)
-    print(f"Average FiO2 for this patient: {average_fio2}")
 
-    plot_path = os.path.join(slicer.util.settingsValue("DefaultScenePath", None), "plot.png")
+    # TODO: this is a temporary experimental measure. we should not add this tab again and again each time a patient is loaded.
+    patient_data_widget = qt.QWidget()
+    patient_data_widget.setLayout(qt.QVBoxLayout())
+    patient_data_dump = qt.QLabel(str(self.eicu.get_patient_from_unitstay(self.unitstay_id)))
+    patient_data_widget.layout().addWidget(patient_data_dump)
+    patient_data_widget.layout().addWidget(qt.QLabel(f"Average FiO2 for this patient: {average_fio2}"))
+    scrollArea = qt.QScrollArea()
+    scrollArea.setWidget(patient_data_widget)
+    self.clinical_parameters_tabWidget.addTab(scrollArea, "Patient data")
+
+    import matplotlib
+    matplotlib.use('agg')
+    plot_path = os.path.join(self.workspace_dir, "plot.png")
     figure.savefig(plot_path)
     print("Saved FiO2 plot to", plot_path)
+    pixmap = qt.QPixmap(plot_path)
+    plotQLabel = qt.QLabel()
+    plotQLabel.setPixmap(pixmap)
+
+    # TODO: this is a temporary experimental measure. we should not add this tab again and again each time a patient is loaded.
+    scrollArea = qt.QScrollArea()
+    scrollArea.setWidget(plotQLabel)
+    self.clinical_parameters_tabWidget.addTab(scrollArea, "FiO2 plot")
 
 
 

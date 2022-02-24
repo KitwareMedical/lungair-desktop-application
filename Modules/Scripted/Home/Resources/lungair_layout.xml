@@ -1,34 +1,30 @@
-<layout type="horizontal" split="true">
+<layout type="vertical" split="true">
   <item>
-    <layout type="vertical" split="true">
+    <layout type="horizontal" split="false">
       <item>
         <view class="vtkMRMLSliceNode" singletontag="xray">
           <property name="orientation" action="default">Coronal</property>
           <property name="viewlabel" action="default">Chest X-Ray</property>
-          <!-- <property name="viewcolor" action="default">#AAFFAA</property> -->
         </view>
       </item>
       <item>
-        <view class="vtkMRMLTableViewNode" singletontag="clinicalData">
-          <property name="viewlabel" action="default">Clinical Data</property>
-          <!-- <property name="viewcolor" action="default">#FFAAAA</property> -->
+        <view class="vtkMRMLSliceNode" singletontag="xrayFeatures">
+          <property name="orientation" action="default">Coronal</property>
+          <property name="viewlabel" action="default">X-Ray Features</property>
         </view>
       </item>
     </layout>
   </item>
   <item>
-    <layout type="vertical" split="true">
+    <layout type="horizontal" split="false">
       <item>
-        <view class="vtkMRMLSliceNode" singletontag="xrayFeatures">
-          <property name="orientation" action="default">Coronal</property>
-          <property name="viewlabel" action="default">X-Ray Features</property>
-          <!-- <property name="viewcolor" action="default">#AAFFAA</property> -->
+        <view class="vtkMRMLPlotViewNode" singletontag="ClinicalParameters">
+          <property name="viewlabel" action="default">Clinical Parameters</property>
         </view>
       </item>
       <item>
-        <view class="vtkMRMLPlotViewNode" singletontag="analysis">
-          <property name="viewlabel" action="default">Analysis Results</property>
-          <!-- <property name="viewcolor" action="default">#FFAAAA</property> -->
+        <view class="vtkMRMLPlotViewNode" singletontag="RiskAnalysis">
+          <property name="viewlabel" action="default">Risk Analysis</property>
         </view>
       </item>
     </layout>
