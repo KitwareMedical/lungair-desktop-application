@@ -1,5 +1,6 @@
 QWidget {
-    background-color: #B9BAA3
+    background-color: #2D2D2A;
+    color: #EBEBEA;
 }
 
 QPushButton {
@@ -16,7 +17,7 @@ QPushButton:hover {
 }
 
 QPushButton:pressed {
-    background-color: #BE97C6
+    background-color: #BE97C6;
 }
 
 QPushButton:disabled {
@@ -26,17 +27,17 @@ QPushButton:disabled {
 }
 
 QComboBox {
-    background: #D6D5C9;
+    background: #54544F;
 }
 QAbstractItemView { /*The popup of a QComboBox*/
-    border: 2px solid #D6D5C9;
+    border: 2px solid #54544F;
     selection-background-color: #B47EB3;
 }
 
 QListWidget {
-    background: #D6D5C9;
+    background: #54544F;
 }
 
 QTableWidget {
-    background: #D6D5C9;
+    background: #54544F;
 }
