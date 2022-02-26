@@ -1,5 +1,14 @@
 import slicer, qt, importlib, functools
 
+def pip_install_with_cursor(*args, **kwargs):
+  """Just slicer.util.pip_install but with a busy cursor while it executes."""
+  qt.QApplication.setOverrideCursor(qt.Qt.BusyCursor)
+  try:
+    slicer.util.pip_install(*args, **kwargs)
+  finally:
+    qt.QApplication.restoreOverrideCursor()
+
+
 def check_and_install_package(module_names, pip_install_name, pre_install_hook = None):
   """
   Check if given module can be imported, and if not then prompt user to possibly attempt an install.
@@ -23,7 +32,9 @@ def check_and_install_package(module_names, pip_install_name, pre_install_hook =
     if wantInstall:
       if pre_install_hook is not None:
         pre_install_hook()
-      slicer.util.pip_install(pip_install_name)
+      qt.QApplication.setOverrideCursor(qt.Qt.BusyCursor)
+      pip_install_with_cursor(pip_install_name)
+      qt.QApplication.restoreOverrideCursor()
       try:
         for module_name in module_names:
           importlib.import_module(module_name)
@@ -38,14 +49,14 @@ def check_and_install_package(module_names, pip_install_name, pre_install_hook =
 # A pre-install step for monai, where we use light-the-torch to install torch more carefully:
 # with light-the-torch, the computation backend is auto-detected from the available hardware preferring CUDA over CPU.
 def monai_pre_install():
-  slicer.util.pip_install('light-the-torch')
+  pip_install_with_cursor('light-the-torch')
   import light_the_torch
   wheel_urls = light_the_torch.find_links(['monai'])
   if not wheel_urls:
     raise RuntimeError("light-the-torch has could not find suitable PyTorch wheel URLs to install the torch dependencies of MONAI.")
   for wheel_url in wheel_urls:
     print("Downloading and installing the following wheel URL obtained via light-the-torch:", wheel_url)
-    slicer.util.pip_install(wheel_url)
+    pip_install_with_cursor(wheel_url)
 
 check_and_install_itk = functools.partial(check_and_install_package, ["itk"], "itk")
 check_and_install_pandas = functools.partial(check_and_install_package, ["pandas"], "pandas")
