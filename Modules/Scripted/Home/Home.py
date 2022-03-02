@@ -308,7 +308,7 @@ class HomeLogic(ScriptedLoadableModuleLogic):
       elif plotWidget.name == 'qMRMLPlotWidgetRiskAnalysis':
         self.risk_analysis_widget = plotWidget
       else:
-        raise logging.warn("Warning: Found an unexpected qMRMLPlotWidget; there may be UI setup issues.")
+        logging.warn("Warning: Found an unexpected qMRMLPlotWidget; there may be UI setup issues.")
 
       # we use plotview widgets as placeholders that we can replace with our own custom "view",
       # so we don't actually care about the plot view
@@ -331,7 +331,7 @@ class HomeLogic(ScriptedLoadableModuleLogic):
     if self.clinical_parameters_widget is None:
       raise RuntimeError("Unable to find Clinical Parameters widget; UI setup has failed.")
     if self.risk_analysis_widget is None:
-      raise RuntimeError("Unable to find Clinical Parameters widget; UI setup has failed.")
+      raise RuntimeError("Unable to find Risk Analysis widget; UI setup has failed.")
 
     self.clinical_parameters_tabWidget = qt.QTabWidget()
     self.risk_analysis_tabWidget = qt.QTabWidget()
