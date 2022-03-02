@@ -1,6 +1,5 @@
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 import os
 
 DTYPE_STRING_MAPPING = { # Map schema dtype string to pandas dtype string
@@ -100,7 +99,6 @@ class Eicu:
         respchartoffset: time in minutes since unit admission
         respchartvalue_float: the FiO2 reading recorded for that time
       average_fio2: the average FiO2 value during the unit stay
-      figure: a matplotlib Figure showing a plot of FiO2 over time
     """
     fio2_df = self.get_fio2_df()
     fio2_for_unitstay = fio2_df[fio2_df['patientunitstayid'] == unitstay_id]
@@ -119,10 +117,4 @@ class Eicu:
       # This is basically an integral to compute the average value:
       average_fio2 = (fio2_data_with_deltas['val_shifted']*fio2_data_with_deltas['delta_t']).sum() / total_fio2_time
 
-    figure = plt.figure()
-    plt.plot((1/60.)*np.array(fio2_data.iloc[:,0]), fio2_data.iloc[:,1])
-    plt.xlabel('hours since unit stay admission')
-    plt.ylabel('FiO2')
-    plt.title(f"patient {self.get_patient_id_from_unitstay(unitstay_id)}'s unit stay {unitstay_id}")
-
-    return fio2_data, average_fio2, figure
+    return fio2_data, average_fio2

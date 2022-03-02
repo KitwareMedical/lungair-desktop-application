@@ -253,6 +253,7 @@ def tableNodeFromDataFrame(df):
 # TODO: move this to an appropriate place
 def tableViewFromTableNode(tableNode):
   tableView = slicer.qMRMLTableView()
+  tableView.setMRMLScene(slicer.mrmlScene) # not sure if needed, but seems good to do
   tableView.setMRMLTableNode(tableNode)
   return tableView
 
@@ -326,7 +327,7 @@ class HomeLogic(ScriptedLoadableModuleLogic):
       elif plotWidget.name == 'qMRMLPlotWidgetRiskAnalysis':
         self.risk_analysis_widget = plotWidget
       else:
-        logging.warn("Warning: Found an unexpected qMRMLPlotWidget; there may be UI setup issues.")
+        logging.warn(f"Warning: Found an unexpected qMRMLPlotWidget named \"{plotWidget.name}\"; there may be UI setup issues.")
 
       # we use plotview widgets as placeholders that we can replace with our own custom "view",
       # so we don't actually care about the plot view
@@ -390,7 +391,6 @@ class HomeLogic(ScriptedLoadableModuleLogic):
     # ------------------------
     try:
       from HomeLib.eicu import Eicu
-      import matplotlib
     except Exception as e:
       qt.QMessageBox.critical(slicer.util.mainWindow(), "Error importing eICU interface class",
         "Error importing eICU interface class. If python dependencies are not installed, install them and restart the application. \nDetails: "+str(e)
@@ -455,9 +455,10 @@ class HomeLogic(ScriptedLoadableModuleLogic):
     print(f"We will pretend that this patient is {self.eicu.get_patient_id_from_unitstay(self.unitstay_id)} from the eICU dataset,"
       + f" with unit stay ID {self.unitstay_id}.")
 
-    fio2_data, average_fio2, figure = self.eicu.process_fio2_data_for_unitstay(self.unitstay_id)
+    fio2_data, average_fio2 = self.eicu.process_fio2_data_for_unitstay(self.unitstay_id)
 
-    # TODO: this is a temporary experimental measure. we should not add this tab again and again each time a patient is loaded.
+    # TODO: this is a temporary measure. we should not add this tab again and again each time a patient is loaded.
+    # We also don't want to add table nodes repeatedly but rather reuse the same one.
     patient_df = self.eicu.get_patient_from_unitstay(self.unitstay_id).to_frame().reset_index()
     patient_df.columns = ["Parameter", "Value"]
     patient_df = pd.concat([patient_df, pd.DataFrame([{"Parameter":"Average FiO2", "Value":average_fio2}])])
@@ -466,19 +467,27 @@ class HomeLogic(ScriptedLoadableModuleLogic):
     patient_table_view.setStyleSheet(f"background-color: #54544F;")
     self.clinical_parameters_tabWidget.addTab(patient_table_view, "Patient data")
 
-    import matplotlib
-    matplotlib.use('agg')
-    plot_path = os.path.join(self.workspace_dir, "plot.png")
-    figure.savefig(plot_path)
-    print("Saved FiO2 plot to", plot_path)
-    pixmap = qt.QPixmap(plot_path)
-    plotQLabel = qt.QLabel()
-    plotQLabel.setPixmap(pixmap)
+    # TODO: similarly this is a temporary measure for plot views. we don't want to repeatedly add this tab, or create new
+    # plot chart nodes, plot view nodes, and plot views each time a patient is loaded.
+    plot_chart_node = slicer.util.plot(
+      fio2_data.to_numpy(), 0, show = False,
+      title = f"patient {self.eicu.get_patient_id_from_unitstay(self.unitstay_id)}'s unit stay {self.unitstay_id}",
+      columnNames=["time since unit admission (min)", "FiO2 (%)"]
+    )
+    plot_chart_node.SetXAxisTitle("time since unit admission (min)")
+    plot_chart_node.SetYAxisTitle("FiO2 (%)")
+    plot_series_node = slicer.mrmlScene.GetNodeByID(plot_chart_node.GetPlotSeriesNodeID())
+    plot_series_node.SetName("FiO2") # This text is displayed in the legend
+    plot_view_node = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLPlotViewNode")
+    plot_view_node.SetPlotChartNodeID(plot_chart_node.GetID())
+    plot_view = slicer.qMRMLPlotView()
+    plot_view.setMRMLScene(slicer.mrmlScene)
+    plot_view.setMRMLPlotViewNode(plot_view_node)
+    self.clinical_parameters_tabWidget.addTab(plot_view, "FiO2 plot")
+    self.pv = plot_view
+    self.pvn = plot_view_node
+    self.pcn = plot_chart_node
 
-    # TODO: this is a temporary experimental measure. we should not add this tab again and again each time a patient is loaded.
-    scrollArea = qt.QScrollArea()
-    scrollArea.setWidget(plotQLabel)
-    self.clinical_parameters_tabWidget.addTab(scrollArea, "FiO2 plot")
 
 
 
