@@ -431,8 +431,9 @@ class HomeLogic(ScriptedLoadableModuleLogic):
       dir_path : path to the directory that contains eICU tables as csv.gz files.
       schema_dir : path to the directory that contains table schema text files; see EICU class documentation for details.
     """
-    from HomeLib.eicu import Eicu
-    self.eicu = Eicu(dir_path, schema_dir)
+    if not hasattr(self,"eicu") or not self.eicu:
+      from HomeLib.eicu import Eicu
+      self.eicu = Eicu(dir_path, schema_dir)
     self.unitstay_id = self.eicu.get_random_unitstay()
     print(f"We will pretend that this patient is {self.eicu.get_patient_id_from_unitstay(self.unitstay_id)} from the eICU dataset,"
       + f" with unit stay ID {self.unitstay_id}.")
