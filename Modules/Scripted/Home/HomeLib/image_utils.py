@@ -39,7 +39,6 @@ def create_image_data_from_numpy_array(array, oriented : bool, copy = True):
 
   # I'm not certain that the following assert is needed, but if it ever fails then look here for hints:
   # https://github.com/Kitware/VTK/blob/0d344f312f143e7266ae10266f01470fb941ec96/Wrapping/Python/vtkmodules/util/numpy_support.py#L168
-  # arr_dtype = vtk.util.numpy_support.get_numpy_array_type(vtk_type) # TODO Why no vtk.util?
   arr_dtype = get_numpy_array_type(vtk_type)
   assert(np.issubdtype(array.dtype, arr_dtype) or array.dtype == np.dtype(arr_dtype))
 
