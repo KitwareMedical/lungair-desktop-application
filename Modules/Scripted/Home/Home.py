@@ -401,9 +401,7 @@ class HomeLogic(ScriptedLoadableModuleLogic):
     # Adjust python console colors
     # ------------------------
 
-    for child in slicer.util.mainWindow().children():
-      if child.name == "PythonConsoleDockWidget":
-        child.setStyleSheet(f"background-color: #FFFFFF")
+    slicer.util.mainWindow().pythonConsole().setStyleSheet(f"background-color: #FFFFFF")
 
 
     return True
