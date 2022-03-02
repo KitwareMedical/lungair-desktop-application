@@ -237,6 +237,24 @@ class HomeWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         widget.styleSheet = style
 
 
+# TODO: move this to an appropriate place
+def tableNodeFromDataFrame(df):
+  """Given a pandas dataframe, return a vtkMRMLTableNode with a copy of the data as strings.
+  This is not performant; use on small dataframes only."""
+  tableNode=slicer.mrmlScene.AddNewNodeByClass("vtkMRMLTableNode")
+  for col in df.columns:
+    array = vtk.vtkStringArray()
+    for val in df[col]:
+      array.InsertNextValue(str(val))
+    array.SetName(str(col))
+    tableNode.AddColumn(array)
+  return tableNode
+
+# TODO: move this to an appropriate place
+def tableViewFromTableNode(tableNode):
+  tableView = slicer.qMRMLTableView()
+  tableView.setMRMLTableNode(tableNode)
+  return tableView
 
 class HomeLogic(ScriptedLoadableModuleLogic):
   """This class should implement all the actual
@@ -431,6 +449,7 @@ class HomeLogic(ScriptedLoadableModuleLogic):
       dir_path : path to the directory that contains eICU tables as csv.gz files.
       schema_dir : path to the directory that contains table schema text files; see EICU class documentation for details.
     """
+    import pandas as pd
     if not hasattr(self,"eicu") or not self.eicu:
       from HomeLib.eicu import Eicu
       self.eicu = Eicu(dir_path, schema_dir)
@@ -441,14 +460,13 @@ class HomeLogic(ScriptedLoadableModuleLogic):
     fio2_data, average_fio2, figure = self.eicu.process_fio2_data_for_unitstay(self.unitstay_id)
 
     # TODO: this is a temporary experimental measure. we should not add this tab again and again each time a patient is loaded.
-    patient_data_widget = qt.QWidget()
-    patient_data_widget.setLayout(qt.QVBoxLayout())
-    patient_data_dump = qt.QLabel(str(self.eicu.get_patient_from_unitstay(self.unitstay_id)))
-    patient_data_widget.layout().addWidget(patient_data_dump)
-    patient_data_widget.layout().addWidget(qt.QLabel(f"Average FiO2 for this patient: {average_fio2}"))
-    scrollArea = qt.QScrollArea()
-    scrollArea.setWidget(patient_data_widget)
-    self.clinical_parameters_tabWidget.addTab(scrollArea, "Patient data")
+    patient_df = self.eicu.get_patient_from_unitstay(self.unitstay_id).to_frame().reset_index()
+    patient_df.columns = ["Parameter", "Value"]
+    patient_df = pd.concat([patient_df, pd.DataFrame([{"Parameter":"Average FiO2", "Value":average_fio2}])])
+    patient_table_node = tableNodeFromDataFrame(patient_df)
+    patient_table_view = tableViewFromTableNode(patient_table_node)
+    patient_table_view.setStyleSheet(f"background-color: #54544F;")
+    self.clinical_parameters_tabWidget.addTab(patient_table_view, "Patient data")
 
     import matplotlib
     matplotlib.use('agg')

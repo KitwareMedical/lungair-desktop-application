@@ -38,6 +38,7 @@ QListWidget {
     background: #54544F;
 }
 
-QTableWidget {
+QTableView::item
+{
     background: #54544F;
 }
