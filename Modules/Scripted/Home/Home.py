@@ -238,7 +238,7 @@ class HomeWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
 
 # TODO: move this to an appropriate place
-def tableNodeFromDataFrame(df):
+def tableNodeFromDataFrame(df, editable = False):
   """Given a pandas dataframe, return a vtkMRMLTableNode with a copy of the data as strings.
   This is not performant; use on small dataframes only."""
   tableNode=slicer.mrmlScene.AddNewNodeByClass("vtkMRMLTableNode")
@@ -248,6 +248,7 @@ def tableNodeFromDataFrame(df):
       array.InsertNextValue(str(val))
     array.SetName(str(col))
     tableNode.AddColumn(array)
+  tableNode.SetLocked(not editable)
   return tableNode
 
 # TODO: move this to an appropriate place
@@ -462,7 +463,7 @@ class HomeLogic(ScriptedLoadableModuleLogic):
     patient_df = self.eicu.get_patient_from_unitstay(self.unitstay_id).to_frame().reset_index()
     patient_df.columns = ["Parameter", "Value"]
     patient_df = pd.concat([patient_df, pd.DataFrame([{"Parameter":"Average FiO2", "Value":average_fio2}])])
-    patient_table_node = tableNodeFromDataFrame(patient_df)
+    patient_table_node = tableNodeFromDataFrame(patient_df, editable=False)
     patient_table_view = tableViewFromTableNode(patient_table_node)
     patient_table_view.setFirstRowLocked(True)
     self.clinical_parameters_tabWidget.addTab(patient_table_view, "Patient data")
