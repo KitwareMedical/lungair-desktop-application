@@ -465,7 +465,7 @@ class HomeLogic(ScriptedLoadableModuleLogic):
     patient_df = pd.concat([patient_df, pd.DataFrame([{"Parameter":"Average FiO2", "Value":average_fio2}])])
     patient_table_node = tableNodeFromDataFrame(patient_df, editable=False)
     patient_table_view = tableViewFromTableNode(patient_table_node)
-    patient_table_view.setFirstRowLocked(True)
+    patient_table_view.setFirstRowLocked(True) # Put the column names in the top header, rather than A,B,...
     self.clinical_parameters_tabWidget.addTab(patient_table_view, "Patient data")
 
     # TODO: similarly this is a temporary measure for plot views. we don't want to repeatedly add this tab, or create new

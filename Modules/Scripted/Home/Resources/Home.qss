@@ -30,8 +30,7 @@ QComboBox {
     background: #54544F;
 }
 QAbstractItemView { /*The popup of a QComboBox*/
-    border: 2px solid #54544F;
-    selection-background-color: #B47EB3;
+    selection-background-color: #785589;
 }
 
 QListWidget {
