@@ -40,5 +40,13 @@ QListWidget {
 
 QTableView::item
 {
-    background: #54544F;
+    background-color: #54544F;
+}
+
+QTableView::item:selected{
+    background-color: #785589;
+}
+
+QTableView::item:focus{
+    background-color: #B47EB3;
 }

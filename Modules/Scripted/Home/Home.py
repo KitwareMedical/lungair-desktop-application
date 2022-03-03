@@ -464,7 +464,7 @@ class HomeLogic(ScriptedLoadableModuleLogic):
     patient_df = pd.concat([patient_df, pd.DataFrame([{"Parameter":"Average FiO2", "Value":average_fio2}])])
     patient_table_node = tableNodeFromDataFrame(patient_df)
     patient_table_view = tableViewFromTableNode(patient_table_node)
-    patient_table_view.setStyleSheet(f"background-color: #54544F;")
+    patient_table_view.setFirstRowLocked(True)
     self.clinical_parameters_tabWidget.addTab(patient_table_view, "Patient data")
 
     # TODO: similarly this is a temporary measure for plot views. we don't want to repeatedly add this tab, or create new
@@ -484,9 +484,6 @@ class HomeLogic(ScriptedLoadableModuleLogic):
     plot_view.setMRMLScene(slicer.mrmlScene)
     plot_view.setMRMLPlotViewNode(plot_view_node)
     self.clinical_parameters_tabWidget.addTab(plot_view, "FiO2 plot")
-    self.pv = plot_view
-    self.pvn = plot_view_node
-    self.pcn = plot_chart_node
 
 
 
