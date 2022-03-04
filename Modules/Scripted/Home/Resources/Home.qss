@@ -49,3 +49,12 @@ QTableView::item:selected{
 QTableView::item:focus{
     background-color: #B47EB3;
 }
+
+QToolTip {
+    border: 2px solid #383C57;
+    padding: 3px;
+    border-radius: 3px;
+    opacity: 200;
+    color: #EBEBEA;
+    background-color: 656DA4;
+}

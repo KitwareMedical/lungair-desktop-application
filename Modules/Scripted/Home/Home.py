@@ -8,6 +8,7 @@ from HomeLib import dependency_installer
 from HomeLib.image_utils import *
 from HomeLib.xray import *
 
+BAR_WIDGET_COLOR = "656DA4"
 class Home(ScriptedLoadableModule):
   """Uses ScriptedLoadableModule base class, available at:
   https://github.com/Slicer/Slicer/blob/master/Base/Python/slicer/ScriptedLoadableModule.py
@@ -258,6 +259,33 @@ def tableViewFromTableNode(tableNode):
   tableView.setMRMLTableNode(tableNode)
   return tableView
 
+def createPlotView():
+  """Create and return a qMRMLPlotView widget.
+  It is associated to the main scene, and it also gets a button for fitToContent."""
+  plot_view = slicer.qMRMLPlotView()
+  plot_view.setMRMLScene(slicer.mrmlScene)
+
+  fit_plot_tool_button = qt.QToolButton()
+  fit_plot_tool_button.clicked.connect(lambda: plot_view.fitToContent())
+
+  # Put the QToolButton in the top right corner of the plot
+  assert(plot_view.layout() is None) # failure here indicates a slicer change in which plot views gained layouts, which we should take care not to replace
+  plot_view.setLayout(qt.QHBoxLayout())
+  plot_view.layout().insertWidget(1,fit_plot_tool_button,0,qt.Qt.AlignTop)
+  spacer = qt.QSpacerItem(20,20,qt.QSizePolicy.Expanding, qt.QSizePolicy.Expanding)
+  plot_view.layout().insertItem(0,spacer)
+  plot_view.layout().margin=0
+
+  # Give it a nice appearance
+  fit_plot_tool_button.setIconSize(qt.QSize(10,10))
+  fit_plot_tool_button.setIcon(qt.QIcon(":Icons/SlicesFitToWindow.png"))
+  fit_plot_tool_button.setStyleSheet(f"background-color:#{BAR_WIDGET_COLOR};")
+  fit_plot_tool_button.setAutoRaise(True)
+
+  fit_plot_tool_button.setToolTip("Reset zoom to fit entire plot")
+
+  return plot_view
+
 class HomeLogic(ScriptedLoadableModuleLogic):
   """This class should implement all the actual
   computation done by your module.  The interface
@@ -301,8 +329,6 @@ class HomeLogic(ScriptedLoadableModuleLogic):
     # set the layout to be the current one
     layoutManager.setLayout(layoutID)
 
-    bar_widget_color = "656DA4"
-
     # tweak any slice view nodes that were added in the layout
     for sliceViewName in layoutManager.sliceViewNames():
       sliceWidget = layoutManager.sliceWidget(sliceViewName)
@@ -315,7 +341,7 @@ class HomeLogic(ScriptedLoadableModuleLogic):
       sliceController.pinButton().hide()
 
       barWidget = sliceWidget.sliceController().barWidget()
-      barWidget.setStyleSheet(f"background-color: #{bar_widget_color}; color: #FFFFFF;")
+      barWidget.setStyleSheet(f"background-color: #{BAR_WIDGET_COLOR}; color: #FFFFFF;")
       resetViewButton = [child for child in barWidget.children() if child.name=="FitToWindowToolButton"][0]
       resetViewButton.toolTip = "<p>Reset X-Ray view to fill the viewer.</p>"
 
@@ -335,7 +361,7 @@ class HomeLogic(ScriptedLoadableModuleLogic):
       plotWidget.plotView().hide()
 
       barWidget = plotWidget.plotController().barWidget()
-      barWidget.setStyleSheet(f"background-color: #{bar_widget_color}; color: #FFFFFF;")
+      barWidget.setStyleSheet(f"background-color: #{BAR_WIDGET_COLOR}; color: #FFFFFF;")
 
       # This removes the stretch that was added at
       # https://github.com/Slicer/Slicer/blob/d3b8e33a8a2f5a4cb73a0060e34513eb8573c12b/Libs/MRML/Widgets/qMRMLPlotViewControllerWidget.cxx#L110
@@ -481,8 +507,7 @@ class HomeLogic(ScriptedLoadableModuleLogic):
     plot_series_node.SetName("FiO2") # This text is displayed in the legend
     plot_view_node = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLPlotViewNode")
     plot_view_node.SetPlotChartNodeID(plot_chart_node.GetID())
-    plot_view = slicer.qMRMLPlotView()
-    plot_view.setMRMLScene(slicer.mrmlScene)
+    plot_view = createPlotView()
     plot_view.setMRMLPlotViewNode(plot_view_node)
     self.clinical_parameters_tabWidget.addTab(plot_view, "FiO2 plot")
 
