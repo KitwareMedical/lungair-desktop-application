@@ -51,10 +51,8 @@ QTableView::item:focus{
 }
 
 QToolTip {
-    border: 2px solid #383C57;
-    padding: 3px;
-    border-radius: 3px;
+    padding: 2px;
     opacity: 200;
     color: #EBEBEA;
-    background-color: 656DA4;
+    background-color: #656DA4;
 }
