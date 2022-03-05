@@ -295,10 +295,13 @@ class ClinicalParametersTabWidget(qt.QTabWidget): # TODO move this class to an a
     self.patient_table_node = None # vtkMRMLTableNode
 
     self.fio2_plot_view = createPlotView()
-    self.fio2_plot_view_node = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLPlotViewNode")
+    self.fio2_plot_view_node = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLPlotViewNode", "fio2PlotViewNode")
     self.fio2_plot_view.setMRMLPlotViewNode(self.fio2_plot_view_node)
     self.addTab(self.fio2_plot_view, "FiO2 plot")
     self.fio2_plot_nodes = {} # chart, table, and series; see the parameter "nodes" in the doc of slicer.util.plot
+
+    # A plot view node we will keep empty in order to have a way of displaying no plot
+    self.empty_plot_view_node = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLPlotViewNode", "clinicalParamatersWidgetEmptyPlotViewNode")
 
   def set_table_node(self, table_node):
     """Set the patient table view to show the given vtkMRMLTableNode."""
@@ -326,6 +329,10 @@ class ClinicalParametersTabWidget(qt.QTabWidget): # TODO move this class to an a
     if len(fio2_data.shape)!=2 or fio2_data.shape[1]!=2:
       raise ValueError(f"fio2_data was expected to be a numpy array of shape (N,2), got {tuple(fio2_data.shape)}")
 
+    # To solve github.com/KitwareMedical/lungair-desktop-application/issues/27
+    # we avoid changing plots while they are associated to a plot view.
+    self.fio2_plot_view.setMRMLPlotViewNode(self.empty_plot_view_node)
+
     plot_chart_node = slicer.util.plot(
       fio2_data, 0, show = False,
       title = "FiO2",
@@ -337,6 +344,8 @@ class ClinicalParametersTabWidget(qt.QTabWidget): # TODO move this class to an a
     assert(len(self.fio2_plot_nodes["series"]) == 1)
     self.fio2_plot_nodes["series"][0].SetName("FiO2") # This text is displayed in the legend
     self.fio2_plot_view_node.SetPlotChartNodeID(plot_chart_node.GetID())
+
+    self.fio2_plot_view.setMRMLPlotViewNode(self.fio2_plot_view_node)
 
 class HomeLogic(ScriptedLoadableModuleLogic):
   """This class should implement all the actual
