@@ -1,5 +1,6 @@
 from genericpath import exists
 import os
+from torch._C import Node
 import vtk, qt, ctk, slicer
 from slicer.ScriptedLoadableModule import *
 import logging
@@ -256,31 +257,7 @@ def tableNodeFromDataFrame(df, editable = False):
   tableNode.SetLocked(not editable)
   return tableNode
 
-class ClinicalParametersTabWidget(qt.QTabWidget): # TODO move this class to an appropriate place
-  def __init__(self):
-    super().__init__()
-
-    self.patient_table_view = slicer.qMRMLTableView()
-    self.patient_table_view.setMRMLScene(slicer.mrmlScene)
-    self.addTab(self.patient_table_view, "Patient data")
-
-    # Track the currently displayed patient table node so we can delete it when we want to replace it
-    self.patient_table_node = None # vtkMRMLTableNode
-
-  def set_table_node(self, table_node):
-    """Set the patient table view to show the given vtkMRMLTableNode."""
-    self.patient_table_view.setMRMLTableNode(table_node)
-    self.patient_table_view.setFirstRowLocked(True) # Put the column names in the top header, rather than A,B,...
-
-  def set_patient_df(self, patient_df):
-    """Populate the patient table view with the contents of the given dataframe"""
-    if self.patient_table_node is not None:
-      slicer.mrmlScene.RemoveNode(self.patient_table_node)
-    self.patient_table_node = tableNodeFromDataFrame(patient_df, editable=False)
-    self.patient_table_node.SetName("ClinicalParamatersTabWidget_PatientTableNode")
-    self.set_table_node(self.patient_table_node)
-
-
+# TODO: move this to an appropriate place
 def createPlotView():
   """Create and return a qMRMLPlotView widget.
   It is associated to the main scene, and it also gets a button for fitToContent."""
@@ -307,6 +284,59 @@ def createPlotView():
   fit_plot_tool_button.setToolTip("Reset zoom to fit entire plot")
 
   return plot_view
+
+class ClinicalParametersTabWidget(qt.QTabWidget): # TODO move this class to an appropriate place
+  def __init__(self):
+    super().__init__()
+
+    self.patient_table_view = slicer.qMRMLTableView()
+    self.patient_table_view.setMRMLScene(slicer.mrmlScene)
+    self.addTab(self.patient_table_view, "Patient data")
+    self.patient_table_node = None # vtkMRMLTableNode
+
+    self.fio2_plot_view = createPlotView()
+    self.fio2_plot_view_node = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLPlotViewNode")
+    self.fio2_plot_view.setMRMLPlotViewNode(self.fio2_plot_view_node)
+    self.addTab(self.fio2_plot_view, "FiO2 plot")
+    self.fio2_plot_nodes = {} # chart, table, and series; see the parameter "nodes" in the doc of slicer.util.plot
+
+  def set_table_node(self, table_node):
+    """Set the patient table view to show the given vtkMRMLTableNode."""
+    self.patient_table_view.setMRMLTableNode(table_node)
+    self.patient_table_view.setFirstRowLocked(True) # Put the column names in the top header, rather than A,B,...
+
+  def set_patient_df(self, patient_df):
+    """Populate the patient table view with the contents of the given dataframe"""
+    if self.patient_table_node is not None:
+      slicer.mrmlScene.RemoveNode(self.patient_table_node)
+    self.patient_table_node = tableNodeFromDataFrame(patient_df, editable=False)
+    self.patient_table_node.SetName("ClinicalParamatersTabWidget_PatientTableNode")
+    self.set_table_node(self.patient_table_node)
+
+  def set_fio2_plot(self, fio2_data):
+    """
+    Populate the fio2 plot with the data from the given numpy array.
+
+    Args:
+      fio2_data: A numpy array of shape (N,2), where
+        the first column is time in min and
+        the second column is FiO2 %
+    """
+
+    if len(fio2_data.shape)!=2 or fio2_data.shape[1]!=2:
+      raise ValueError(f"fio2_data was expected to be a numpy array of shape (N,2), got {tuple(fio2_data.shape)}")
+
+    plot_chart_node = slicer.util.plot(
+      fio2_data, 0, show = False,
+      title = "FiO2",
+      columnNames = ["time since unit admission (min)", "FiO2 (%)"],
+      nodes = self.fio2_plot_nodes
+    )
+    plot_chart_node.SetXAxisTitle("time since unit admission (min)")
+    plot_chart_node.SetYAxisTitle("FiO2 (%)")
+    assert(len(self.fio2_plot_nodes["series"]) == 1)
+    self.fio2_plot_nodes["series"][0].SetName("FiO2") # This text is displayed in the legend
+    self.fio2_plot_view_node.SetPlotChartNodeID(plot_chart_node.GetID())
 
 class HomeLogic(ScriptedLoadableModuleLogic):
   """This class should implement all the actual
@@ -506,35 +536,12 @@ class HomeLogic(ScriptedLoadableModuleLogic):
 
     fio2_data, average_fio2 = self.eicu.process_fio2_data_for_unitstay(self.unitstay_id)
 
-    # TODO: this is a temporary measure. we should not add this tab again and again each time a patient is loaded.
-    # We also don't want to add table nodes repeatedly but rather reuse the same one.
     patient_df = self.eicu.get_patient_from_unitstay(self.unitstay_id).to_frame().reset_index()
     patient_df.columns = ["Parameter", "Value"]
     patient_df = pd.concat([patient_df, pd.DataFrame([{"Parameter":"Average FiO2", "Value":average_fio2}])])
+
     self.clinical_parameters_tabWidget.set_patient_df(patient_df)
-
-    # TODO: similarly this is a temporary measure for plot views. we don't want to repeatedly add this tab, or create new
-    # plot chart nodes, plot view nodes, and plot views each time a patient is loaded.
-    plot_chart_node = slicer.util.plot(
-      fio2_data.to_numpy(), 0, show = False,
-      title = f"patient {self.eicu.get_patient_id_from_unitstay(self.unitstay_id)}'s unit stay {self.unitstay_id}",
-      columnNames=["time since unit admission (min)", "FiO2 (%)"]
-    )
-    plot_chart_node.SetXAxisTitle("time since unit admission (min)")
-    plot_chart_node.SetYAxisTitle("FiO2 (%)")
-    plot_series_node = slicer.mrmlScene.GetNodeByID(plot_chart_node.GetPlotSeriesNodeID())
-    plot_series_node.SetName("FiO2") # This text is displayed in the legend
-    plot_view_node = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLPlotViewNode")
-    plot_view_node.SetPlotChartNodeID(plot_chart_node.GetID())
-    plot_view = createPlotView()
-    plot_view.setMRMLPlotViewNode(plot_view_node)
-    self.clinical_parameters_tabWidget.addTab(plot_view, "FiO2 plot")
-
-
-
-
-
-
+    self.clinical_parameters_tabWidget.set_fio2_plot(fio2_data.to_numpy())
 
 class HomeTest(ScriptedLoadableModuleTest):
   """
