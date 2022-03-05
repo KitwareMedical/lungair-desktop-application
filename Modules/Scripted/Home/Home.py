@@ -237,27 +237,49 @@ class HomeWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
       for widget in widgets:
         widget.styleSheet = style
 
-
 # TODO: move this to an appropriate place
 def tableNodeFromDataFrame(df, editable = False):
   """Given a pandas dataframe, return a vtkMRMLTableNode with a copy of the data as strings.
   This is not performant; use on small dataframes only."""
-  tableNode=slicer.mrmlScene.AddNewNodeByClass("vtkMRMLTableNode")
+  tableNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLTableNode")
   for col in df.columns:
+
+    # Populate array
     array = vtk.vtkStringArray()
     for val in df[col]:
       array.InsertNextValue(str(val))
+
+    # The array name should end up as the first value in the column
     array.SetName(str(col))
     tableNode.AddColumn(array)
+
   tableNode.SetLocked(not editable)
   return tableNode
 
-# TODO: move this to an appropriate place
-def tableViewFromTableNode(tableNode):
-  tableView = slicer.qMRMLTableView()
-  tableView.setMRMLScene(slicer.mrmlScene) # not sure if needed, but seems good to do
-  tableView.setMRMLTableNode(tableNode)
-  return tableView
+class ClinicalParametersTabWidget(qt.QTabWidget): # TODO move this class to an appropriate place
+  def __init__(self):
+    super().__init__()
+
+    self.patient_table_view = slicer.qMRMLTableView()
+    self.patient_table_view.setMRMLScene(slicer.mrmlScene)
+    self.addTab(self.patient_table_view, "Patient data")
+
+    # Track the currently displayed patient table node so we can delete it when we want to replace it
+    self.patient_table_node = None # vtkMRMLTableNode
+
+  def set_table_node(self, table_node):
+    """Set the patient table view to show the given vtkMRMLTableNode."""
+    self.patient_table_view.setMRMLTableNode(table_node)
+    self.patient_table_view.setFirstRowLocked(True) # Put the column names in the top header, rather than A,B,...
+
+  def set_patient_df(self, patient_df):
+    """Populate the patient table view with the contents of the given dataframe"""
+    if self.patient_table_node is not None:
+      slicer.mrmlScene.RemoveNode(self.patient_table_node)
+    self.patient_table_node = tableNodeFromDataFrame(patient_df, editable=False)
+    self.patient_table_node.SetName("ClinicalParamatersTabWidget_PatientTableNode")
+    self.set_table_node(self.patient_table_node)
+
 
 def createPlotView():
   """Create and return a qMRMLPlotView widget.
@@ -379,8 +401,8 @@ class HomeLogic(ScriptedLoadableModuleLogic):
     if self.risk_analysis_widget is None:
       raise RuntimeError("Unable to find Risk Analysis widget; UI setup has failed.")
 
-    self.clinical_parameters_tabWidget = qt.QTabWidget()
-    self.risk_analysis_tabWidget = qt.QTabWidget()
+    self.clinical_parameters_tabWidget = ClinicalParametersTabWidget()
+    self.risk_analysis_tabWidget = qt.QTabWidget() # TODO make this, eventually
     self.clinical_parameters_widget.layout().addWidget(self.clinical_parameters_tabWidget)
     self.risk_analysis_widget.layout().addWidget(self.risk_analysis_tabWidget)
 
@@ -489,10 +511,7 @@ class HomeLogic(ScriptedLoadableModuleLogic):
     patient_df = self.eicu.get_patient_from_unitstay(self.unitstay_id).to_frame().reset_index()
     patient_df.columns = ["Parameter", "Value"]
     patient_df = pd.concat([patient_df, pd.DataFrame([{"Parameter":"Average FiO2", "Value":average_fio2}])])
-    patient_table_node = tableNodeFromDataFrame(patient_df, editable=False)
-    patient_table_view = tableViewFromTableNode(patient_table_node)
-    patient_table_view.setFirstRowLocked(True) # Put the column names in the top header, rather than A,B,...
-    self.clinical_parameters_tabWidget.addTab(patient_table_view, "Patient data")
+    self.clinical_parameters_tabWidget.set_patient_df(patient_df)
 
     # TODO: similarly this is a temporary measure for plot views. we don't want to repeatedly add this tab, or create new
     # plot chart nodes, plot view nodes, and plot views each time a patient is loaded.
