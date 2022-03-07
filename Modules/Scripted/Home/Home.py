@@ -458,6 +458,8 @@ class HomeLogic(ScriptedLoadableModuleLogic):
     # ------------------------
 
     self.xray_display_manager = XrayDisplayManager()
+    self.xrays = []
+    self.selected_xray = None
 
     # ------------------------
     # Set up segmentation model
@@ -495,6 +497,9 @@ class HomeLogic(ScriptedLoadableModuleLogic):
     return True
 
   def loadXraysFromDirectory(self, dir_path : str):
+    self.selected_xray = None
+    for xray in self.xrays:
+      xray.delete_nodes()
     self.xrays = []
     for item_name in os.listdir(dir_path):
       item_path = os.path.join(dir_path,item_name)
@@ -507,7 +512,7 @@ class HomeLogic(ScriptedLoadableModuleLogic):
   def selectXray(self, xray : Xray):
 
     # Hide segmentation on previously selected xray, if there was one. Show segmentation of newly selected xray, if there is one.
-    if hasattr(self, "selected_xray"):
+    if self.selected_xray is not None:
       self.xray_display_manager.set_xray_segmentation_visibility(self.selected_xray, False)
     self.selected_xray = xray
     self.xray_display_manager.set_xray_segmentation_visibility(self.selected_xray, True)

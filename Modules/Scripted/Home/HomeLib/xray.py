@@ -140,6 +140,13 @@ class Xray:
     """Whether there is an associated segmentation node"""
     return self.seg_node is not None
 
+  def delete_nodes(self):
+    """Delete this xray's associated nodes. This leaves the object in an invalid state and it should no longer be used."""
+    slicer.mrmlScene.RemoveNode(self.volume_node)
+    slicer.mrmlScene.RemoveNode(self.seg_node) # Passing None to RemoveNode should do nothing
+    self.seg_node = None
+    self.volume_node = None
+
   def add_segmentation(self):
     """
     Run segmentation model for this xray if it hasn't already been done.
