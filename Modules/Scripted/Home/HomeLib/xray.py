@@ -93,11 +93,11 @@ def load_xrays(path:str, seg_model, image_format=None):
   elif image_format=="dicom":
     loaded_nodes = load_dicom_dir_using_plugin(path, "DICOMScalarVolumePlugin")
     loaded_xrays = []
-    for node in loaded_nodes:
+    for i, node in enumerate(loaded_nodes):
       if node.GetClassName()!="vtkMRMLScalarVolumeNode":
         logging.warning("Somehow load_dicom_dir_using_plugin added an unexpected node type; see node ID "+node.GetID())
       else:
-        loaded_xrays.append(Xray(name, node, seg_model))
+        loaded_xrays.append(Xray(name+f"_{i}", node, seg_model))
     return loaded_xrays
   else:
     raise ValueError("Unrecognized image_format.")
@@ -288,9 +288,6 @@ class Xray:
     return array_2D_oriented.astype(dtype)
 
 
-
-
-
 class XrayDisplayManager:
   """Handles showing and hiding various aspects of Xray objects, and manages the xray view nodes."""
   def __init__(self):
@@ -331,3 +328,74 @@ class XrayDisplayManager:
       xray.seg_node.GetDisplayNode().AddViewNodeID(self.xray_features_view_node.GetID())
 
       xray.seg_node.GetDisplayNode().SetVisibility(visibility)
+
+
+def shItem_has_volume_node_descendant(item_id):
+  """Return whether the item with the given subject hierarchy item ID has any volume nodes under its subtree"""
+  shNode = slicer.mrmlScene.GetSubjectHierarchyNode()
+  children = vtk.vtkIdList()
+  shNode.GetItemChildren(item_id, children, True) # last parameter is "recursive = False"
+  for i in range(children.GetNumberOfIds()):
+    node = shNode.GetItemDataNode(children.GetId(i))
+    if node is not None and node.IsTypeOf("vtkMRMLVolumeNode"):
+      return True
+  return False
+
+def prune_unused_subjects():
+  """Delete any unused top-level subjects from the subject hierarchy.
+  Here "unused" means subjects that contain no volume nodes under them."""
+  shNode = slicer.mrmlScene.GetSubjectHierarchyNode()
+  top_level_children = vtk.vtkIdList()
+  shNode.GetItemChildren(shNode.GetSceneItemID(), top_level_children, False) # last parameter is "recursive = False"
+  for i in range(top_level_children.GetNumberOfIds()):
+    top_level_child = top_level_children.GetId(i)
+    if shNode.GetItemLevel(top_level_child) == "Patient" and not shItem_has_volume_node_descendant(top_level_child):
+      shNode.RemoveItem(top_level_child)
+
+class XrayCollection(dict):
+  """A mapping from xray names to xray objects, with some useful xray-specific functionality."""
+  def __init__(self):
+    super().__init__()
+    self.xray_display_manager = XrayDisplayManager()
+    self.selected_name = None # This can be None or it can be the key of the currently selected xray
+
+  def clear(self):
+    """Empty out the xray collection, cleaning up associated resources used in the scene."""
+    self.selected_name = None
+    for xray in self.values():
+      xray.delete_nodes()
+
+    # The last set of xrays that was loaded may have added subjects to the subject hierarchy that are no longer neeeded
+    # This is not an elegant approach, because it deletes unused subjects indiscriminantly, without regard to whether they were
+    # added in relation to this particular xray collection. IF we later use the subject-study system elsewhere in the LungAIR application,
+    # then we would have to change this approach.
+    prune_unused_subjects()
+
+    super().clear()
+
+  def extend(self, xrays):
+    """Append the given list of xrays to this collection; raises exception if a duplicate xray name is encountered."""
+    for xray in xrays:
+      if xray.name in self.keys():
+        raise Exception("Duplicate xray name has been encountered; names should be unique.")
+      self.update({xray.name : xray})
+
+  def selected_xray(self) -> Xray:
+    return self[self.selected_name]
+
+  def select(self, name : str):
+    """Select the xray of the given name, carrying out visibility changes in the scene as needed."""
+    if self.selected_name is not None:
+      self.xray_display_manager.set_xray_segmentation_visibility(self.selected_xray(), False)
+    self.selected_name = name
+    self.xray_display_manager.set_xray_segmentation_visibility(self.selected_xray(), True)
+    self.xray_display_manager.show_xray(self.selected_xray())
+
+  def segment_selected(self):
+    """Add a segmentation for the selected xray and make it the visible segmentation."""
+    self.selected_xray().add_segmentation()
+
+    # Make all segmentations invisible except the selected one
+    for xray in self.values():
+      self.xray_display_manager.set_xray_segmentation_visibility(xray, False)
+    self.xray_display_manager.set_xray_segmentation_visibility(self.selected_xray(), True)

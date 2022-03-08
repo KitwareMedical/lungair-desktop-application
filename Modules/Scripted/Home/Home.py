@@ -7,7 +7,7 @@ import logging
 from slicer.util import VTKObservationMixin
 from HomeLib import dependency_installer
 from HomeLib.image_utils import *
-from HomeLib.xray import *
+import HomeLib.xray as xray
 
 BAR_WIDGET_COLOR = "656DA4"
 class Home(ScriptedLoadableModule):
@@ -143,7 +143,7 @@ class HomeWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
   def onLoadPatientClicked(self):
     self.logic.loadXraysFromDirectory(self.xrayDirectoryPathLineEdit.currentPath)
     self.xrayListWidget.clear()
-    for xray in self.logic.xrays:
+    for xray in self.logic.xray_collection.values():
       self.xrayListWidget.addItem(xray.name)
 
     self.logic.loadEICUFromDirectory(self.csvDirectoryPathLineEdit.currentPath, self.resourcePath("Schema/eICU"))
@@ -238,30 +238,6 @@ class HomeWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
       for widget in widgets:
         widget.styleSheet = style
 
-# TODO: move this to an appropriate place
-def shItem_has_volume_node_descendant(item_id):
-  """Return whether the item with the given subject hierarchy item ID has any volume nodes under its subtree"""
-  shNode = slicer.mrmlScene.GetSubjectHierarchyNode()
-  children = vtk.vtkIdList()
-  shNode.GetItemChildren(item_id, children, True) # last parameter is "recursive = False"
-  for i in range(children.GetNumberOfIds()):
-    node = shNode.GetItemDataNode(children.GetId(i))
-    if node is not None and node.IsTypeOf("vtkMRMLVolumeNode"):
-      return True
-  return False
-
-# TODO: move this to an appropriate place
-def prune_unused_subjects():
-  """Delete any unused top-level subjects from the subject hierarchy.
-  Here "unused" means subjects that contain no volume nodes under them."""
-  shNode = slicer.mrmlScene.GetSubjectHierarchyNode()
-  top_level_children = vtk.vtkIdList()
-  shNode.GetItemChildren(shNode.GetSceneItemID(), top_level_children, False) # last parameter is "recursive = False"
-  for i in range(top_level_children.GetNumberOfIds()):
-    top_level_child = top_level_children.GetId(i)
-    if shNode.GetItemLevel(top_level_child) == "Patient" and not shItem_has_volume_node_descendant(top_level_child):
-      shNode.RemoveItem(top_level_child)
-      print("Pruned!")
 
 # TODO: move this to an appropriate place
 def tableNodeFromDataFrame(df, editable = False):
@@ -482,9 +458,7 @@ class HomeLogic(ScriptedLoadableModuleLogic):
     # Set up xray display manager
     # ------------------------
 
-    self.xray_display_manager = XrayDisplayManager()
-    self.xrays = []
-    self.selected_xray = None
+    self.xray_collection = xray.XrayCollection()
 
     # ------------------------
     # Set up segmentation model
@@ -522,40 +496,20 @@ class HomeLogic(ScriptedLoadableModuleLogic):
     return True
 
   def loadXraysFromDirectory(self, dir_path : str):
-    self.selected_xray = None
-    for xray in self.xrays:
-      xray.delete_nodes()
-    prune_unused_subjects() # The last set of xrays that was loaded may have added subjects to the subject hierarchy that are no longer neeeded
-    self.xrays = []
+    self.xray_collection.clear()
     for item_name in os.listdir(dir_path):
       item_path = os.path.join(dir_path,item_name)
-      loaded_xrays = load_xrays(item_path, self.seg_model)
+      loaded_xrays = xray.load_xrays(item_path, self.seg_model)
       if len(loaded_xrays)==0:
         raise RuntimeError("Failed to load xray(s) from path", item_path)
-      self.xrays.extend(loaded_xrays)
-      self.selectXray(loaded_xrays[0])
-
-  def selectXray(self, xray : Xray):
-
-    # Hide segmentation on previously selected xray, if there was one. Show segmentation of newly selected xray, if there is one.
-    if self.selected_xray is not None:
-      self.xray_display_manager.set_xray_segmentation_visibility(self.selected_xray, False)
-    self.selected_xray = xray
-    self.xray_display_manager.set_xray_segmentation_visibility(self.selected_xray, True)
-    self.xray_display_manager.show_xray(self.selected_xray)
+      self.xray_collection.extend(loaded_xrays)
+      self.xray_collection.select(loaded_xrays[0].name)
 
   def selectXrayByName(self, name : str):
-    for xray in self.xrays: # TODO replace self.xrays by map so you don't search
-      if xray.name == name:
-        self.selectXray(xray)
+    self.xray_collection.select(name)
 
   def segmentSelected(self):
-    self.selected_xray.add_segmentation()
-
-    # Make all segmentations invisible except the selected one
-    for xray in self.xrays:
-      self.xray_display_manager.set_xray_segmentation_visibility(xray, False)
-    self.xray_display_manager.set_xray_segmentation_visibility(self.selected_xray, True)
+    self.xray_collection.segment_selected()
 
   def loadEICUFromDirectory(self, dir_path : str, schema_dir : str):
     """ As a placeholder to get some EHR data to play with, we use the eICU dataset.
