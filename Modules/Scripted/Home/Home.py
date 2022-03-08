@@ -239,6 +239,31 @@ class HomeWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         widget.styleSheet = style
 
 # TODO: move this to an appropriate place
+def shItem_has_volume_node_descendant(item_id):
+  """Return whether the item with the given subject hierarchy item ID has any volume nodes under its subtree"""
+  shNode = slicer.mrmlScene.GetSubjectHierarchyNode()
+  children = vtk.vtkIdList()
+  shNode.GetItemChildren(item_id, children, True) # last parameter is "recursive = False"
+  for i in range(children.GetNumberOfIds()):
+    node = shNode.GetItemDataNode(children.GetId(i))
+    if node is not None and node.IsTypeOf("vtkMRMLVolumeNode"):
+      return True
+  return False
+
+# TODO: move this to an appropriate place
+def prune_unused_subjects():
+  """Delete any unused top-level subjects from the subject hierarchy.
+  Here "unused" means subjects that contain no volume nodes under them."""
+  shNode = slicer.mrmlScene.GetSubjectHierarchyNode()
+  top_level_children = vtk.vtkIdList()
+  shNode.GetItemChildren(shNode.GetSceneItemID(), top_level_children, False) # last parameter is "recursive = False"
+  for i in range(top_level_children.GetNumberOfIds()):
+    top_level_child = top_level_children.GetId(i)
+    if shNode.GetItemLevel(top_level_child) == "Patient" and not shItem_has_volume_node_descendant(top_level_child):
+      shNode.RemoveItem(top_level_child)
+      print("Pruned!")
+
+# TODO: move this to an appropriate place
 def tableNodeFromDataFrame(df, editable = False):
   """Given a pandas dataframe, return a vtkMRMLTableNode with a copy of the data as strings.
   This is not performant; use on small dataframes only."""
@@ -500,6 +525,7 @@ class HomeLogic(ScriptedLoadableModuleLogic):
     self.selected_xray = None
     for xray in self.xrays:
       xray.delete_nodes()
+    prune_unused_subjects() # The last set of xrays that was loaded may have added subjects to the subject hierarchy that are no longer neeeded
     self.xrays = []
     for item_name in os.listdir(dir_path):
       item_path = os.path.join(dir_path,item_name)
