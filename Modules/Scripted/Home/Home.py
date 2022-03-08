@@ -130,15 +130,25 @@ class HomeWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
       model_path = self.resourcePath("PyTorchModels/LungSegmentation/model0018.pth"),
     )
 
-    #Apply style
+    # Apply style
     self.applyApplicationStyle()
 
+    # Make additional UI modifications after the main window is shown
+    slicer.util.mainWindow().initialWindowShown.connect(self.onApplicationStartupCompleted)
 
   def onClose(self, unusedOne, unusedTwo):
     pass
 
   def cleanup(self):
     pass
+
+  def onApplicationStartupCompleted(self):
+    # Set initial size of the split view
+    half_height = slicer.util.mainWindow().centralWidget().size.height()//2
+    centralWidgetLayoutFrame = slicer.util.mainWindow().centralWidget().findChild(qt.QFrame, "CentralWidgetLayoutFrame")
+    splitter = centralWidgetLayoutFrame.findChild(qt.QSplitter)
+    # For the splitter movement to work, we need to first let other events finish processing, hence the timer with timout of 0
+    qt.QTimer.singleShot(0, lambda : splitter.handle(1).moveSplitter(half_height))
 
   def onLoadPatientClicked(self):
     self.logic.loadXraysFromDirectory(self.xrayDirectoryPathLineEdit.currentPath)
@@ -194,9 +204,6 @@ class HomeWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     self.CustomToolBar = qt.QToolBar("CustomToolBar")
     self.CustomToolBar.name = "CustomToolBar"
     slicer.util.mainWindow().insertToolBar(mainToolBar, self.CustomToolBar)
-
-    # central = slicer.util.findChild(slicer.util.mainWindow(), name='CentralWidget')
-    # central.setStyleSheet("background-color: #B9BAA3")
 
     gearIcon = qt.QIcon(self.resourcePath('Icons/Gears.png'))
     self.settingsAction = self.CustomToolBar.addAction(gearIcon, "")
