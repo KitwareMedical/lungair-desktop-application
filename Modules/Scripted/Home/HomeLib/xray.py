@@ -4,6 +4,7 @@ import os
 import numpy as np
 import slicer
 import vtk
+import pydicom
 from .image_utils import create_segmentation_node_from_numpy_array
 
 def create_linear_transform_node_from_matrix(matrix, node_name):
@@ -32,9 +33,23 @@ def create_coronal_plane_transform_node_from_2x2(matrix, node_name):
   affine_transform[np.ix_([2,0],[2,0])] = matrix
   return create_linear_transform_node_from_matrix(affine_transform, node_name)
 
-def load_dicom_dir_using_plugin(dicomDataDir, pluginName, quiet = True):
-  """Load from a DICOM directory using a specific DICOMPlugin, returning a list of the loaded nodes.
-  To see the available DICOMPlugins, look at slicer.modules.dicomPlugins.keys()."""
+def load_dicom_dir(dicomDataDir, pluginName, validate_function = None, validate_mode = None, quiet = True):
+  """Load from a DICOM directory and return a list of the loaded nodes.
+
+  Args:
+    pluginName: the DICOMPlugin to use; to see the available DICOMPlugins look at slicer.modules.dicomPlugins.keys().
+    validate_function: if specified then this should be a callable that takes a dicom file path and returns a bool
+      indicating whether the dicom file passes validation
+    validate_mode: only matters if validate_function is specified; can be any of the following:
+      "skip": skip items that don't pass validation
+      "error": raise an exception if an item is encountered that does not pass validation
+    quiet: whether to not dump information about the series IDs and files that were found
+  """
+
+  if validate_function is not None and validate_mode is None:
+    raise ValueError("Please specify a validate_mode.")
+  if validate_mode is not None and validate_function is None:
+    raise ValueError("Please specify a validate_function.")
 
   loadedNodes = []
   @vtk.calldata_type(vtk.VTK_OBJECT)
@@ -56,7 +71,21 @@ def load_dicom_dir_using_plugin(dicomDataDir, pluginName, quiet = True):
       seriesUIDs = [uid for uidList in series for uid in uidList]
       fileLists = []
       for seriesUID in seriesUIDs:
-        fileLists.append(db.filesForSeries(seriesUID))
+        series_file_list = db.filesForSeries(seriesUID)
+        if validate_mode is None:
+          series_file_list_filtered = series_file_list
+        elif validate_mode=="skip" or validate_mode=="error":
+          series_file_list_filtered = []
+          for file_path in series_file_list:
+            if validate_function(file_path):
+              series_file_list_filtered.append(file_path)
+            else:
+              if validate_mode=="error":
+                raise Exception(f"DICOM file {file_path} has failed validation.")
+              elif not quiet:
+                print(f"Skipping {file_path} because it failed validation.")
+        if len(series_file_list_filtered)>0:
+          fileLists.append(series_file_list)
       loadables = plugin.examineForImport(fileLists)
       for loadable in loadables:
         plugin.load(loadable)
@@ -69,6 +98,13 @@ def load_dicom_dir_using_plugin(dicomDataDir, pluginName, quiet = True):
 
   slicer.mrmlScene.RemoveObserver(sceneObserverTag)
   return loadedNodes
+
+# The DICOM validation function that we will use for NICU chest x-rays
+def validate_nicu_cxr(file):
+  pydicom_file_dataset = pydicom.dcmread(file)
+  return pydicom_file_dataset.ViewPosition in ("AP","PA") and\
+    pydicom_file_dataset.Modality in ("RG","DX","CR") and\
+    pydicom_file_dataset.BodyPartExamined == "CHEST"
 
 def load_xrays(path:str, seg_model, image_format=None):
   """
@@ -91,11 +127,11 @@ def load_xrays(path:str, seg_model, image_format=None):
     volume_node = slicer.util.loadVolume(path, {"singleFile":True, "name":"LungAIR CXR: "+name})
     return [Xray(name, volume_node, seg_model)]
   elif image_format=="dicom":
-    loaded_nodes = load_dicom_dir_using_plugin(path, "DICOMScalarVolumePlugin")
+    loaded_nodes = load_dicom_dir(path, "DICOMScalarVolumePlugin", validate_function=validate_nicu_cxr, validate_mode="skip")
     loaded_xrays = []
     for i, node in enumerate(loaded_nodes):
       if node.GetClassName()!="vtkMRMLScalarVolumeNode":
-        logging.warning("Somehow load_dicom_dir_using_plugin added an unexpected node type; see node ID "+node.GetID())
+        logging.warning("Somehow load_dicom_dir added an unexpected node type; see node ID "+node.GetID())
       else:
         loaded_xrays.append(Xray(name+f"_{i}", node, seg_model))
     return loaded_xrays
