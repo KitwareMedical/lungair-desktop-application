@@ -4,7 +4,6 @@ import os
 import numpy as np
 import slicer
 import vtk
-import pydicom
 from .image_utils import create_segmentation_node_from_numpy_array
 
 def create_linear_transform_node_from_matrix(matrix, node_name):
@@ -33,23 +32,22 @@ def create_coronal_plane_transform_node_from_2x2(matrix, node_name):
   affine_transform[np.ix_([2,0],[2,0])] = matrix
   return create_linear_transform_node_from_matrix(affine_transform, node_name)
 
-def load_dicom_dir(dicomDataDir, pluginName, validate_function = None, validate_mode = None, quiet = True):
+def load_dicom_dir(dicomDataDir, pluginName, validate_dict = None, validate_mode = None, quiet = True):
   """Load from a DICOM directory and return a list of the loaded nodes.
 
   Args:
     pluginName: the DICOMPlugin to use; to see the available DICOMPlugins look at slicer.modules.dicomPlugins.keys().
-    validate_function: if specified then this should be a callable that takes a dicom file path and returns a bool
-      indicating whether the dicom file passes validation
-    validate_mode: only matters if validate_function is specified; can be any of the following:
+    validate_dict: if specified then this should be a dict mapping dicom tags to lists of allowed values
+    validate_mode: only matters if validate_dict is specified; can be any of the following:
       "skip": skip items that don't pass validation
       "error": raise an exception if an item is encountered that does not pass validation
     quiet: whether to not dump information about the series IDs and files that were found
   """
 
-  if validate_function is not None and validate_mode is None:
+  if validate_dict is not None and validate_mode is None:
     raise ValueError("Please specify a validate_mode.")
-  if validate_mode is not None and validate_function is None:
-    raise ValueError("Please specify a validate_function.")
+  if validate_mode is not None and validate_dict is None:
+    raise ValueError("Please specify a validate_dict.")
 
   loadedNodes = []
   @vtk.calldata_type(vtk.VTK_OBJECT)
@@ -77,13 +75,22 @@ def load_dicom_dir(dicomDataDir, pluginName, validate_function = None, validate_
         elif validate_mode=="skip" or validate_mode=="error":
           series_file_list_filtered = []
           for file_path in series_file_list:
-            if validate_function(file_path):
+            dicom_values = {dicom_tag : db.fileValue(file_path,dicom_tag) for dicom_tag, allowed_vals in validate_dict.items()}
+            validation_passed = all(dicom_values[dicom_tag] in validate_dict[dicom_tag] for dicom_tag in validate_dict.keys())
+            if validation_passed:
               series_file_list_filtered.append(file_path)
             else:
               if validate_mode=="error":
-                raise Exception(f"DICOM file {file_path} has failed validation.")
+                raise Exception(
+                  f"DICOM file {file_path} has failed validation due to the following: " + ", ".join(
+                    f"{tag} is {dicom_values[tag]}" for tag in validate_dict.keys()
+                      if dicom_values[tag] not in validate_dict[tag]
+                    )
+                )
               elif not quiet:
                 print(f"Skipping {file_path} because it failed validation.")
+        else:
+          raise ValueError("Invalid validate_mode.")
         if len(series_file_list_filtered)>0:
           fileLists.append(series_file_list)
       loadables = plugin.examineForImport(fileLists)
@@ -100,11 +107,11 @@ def load_dicom_dir(dicomDataDir, pluginName, validate_function = None, validate_
   return loadedNodes
 
 # The DICOM validation function that we will use for NICU chest x-rays
-def validate_nicu_cxr(file):
-  pydicom_file_dataset = pydicom.dcmread(file)
-  return pydicom_file_dataset.ViewPosition in ("AP","PA") and\
-    pydicom_file_dataset.Modality in ("RG","DX","CR") and\
-    pydicom_file_dataset.BodyPartExamined == "CHEST"
+validate_nicu_cxr = {
+  "0018,5101" : ["AP","PA"],
+  "0008,0060" : ["RG","DX","CR"],
+  "0018,0015" : ["CHEST"],
+}
 
 def load_xrays(path:str, seg_model, image_format=None):
   """
@@ -127,7 +134,7 @@ def load_xrays(path:str, seg_model, image_format=None):
     volume_node = slicer.util.loadVolume(path, {"singleFile":True, "name":"LungAIR CXR: "+name})
     return [Xray(name, volume_node, seg_model)]
   elif image_format=="dicom":
-    loaded_nodes = load_dicom_dir(path, "DICOMScalarVolumePlugin", validate_function=validate_nicu_cxr, validate_mode="skip")
+    loaded_nodes = load_dicom_dir(path, "DICOMScalarVolumePlugin", validate_dict=validate_nicu_cxr, validate_mode="skip")
     loaded_xrays = []
     for i, node in enumerate(loaded_nodes):
       if node.GetClassName()!="vtkMRMLScalarVolumeNode":
