@@ -317,14 +317,17 @@ class ClinicalParametersTabWidget(qt.QTabWidget): # TODO move this class to an a
     Populate the fio2 bar plot with the given data
 
     Args:
-      (TODO)
+      bins: a list of pairs representing the start and end of FiO2 % bins, to go with total_times
+      total_times: array with the total time, in minutes, spent in each bin from bins
     """
     self.fio2_bar_plot.set_plot_data(
       data = np.array([np.array(bins).mean(axis=1) , total_times]).transpose(),
       x_axis_label = "FiO2 range (%)",
       y_axis_label = "Total time (min)",
       title = "FiO2 times",
-      plot_type = "bar"
+      legend_label="Time (min)",
+      plot_type = "scatterbar",
+      labels = [f"{start} to {end}" for start, end in bins]
     )
 
 class HomeLogic(ScriptedLoadableModuleLogic):
