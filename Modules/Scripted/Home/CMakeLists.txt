@@ -11,6 +11,8 @@ set(MODULE_PYTHON_SCRIPTS
   ${MODULE_LIB}/segmentation_post_processing.py
   ${MODULE_LIB}/xray.py
   ${MODULE_LIB}/eicu.py
+  ${MODULE_LIB}/constants.py
+  ${MODULE_LIB}/plots.py
   )
 
 set(MODULE_PYTHON_RESOURCES
