@@ -277,8 +277,10 @@ class ClinicalParametersTabWidget(qt.QTabWidget): # TODO move this class to an a
     self.addTab(self.patient_table_view, "Patient data")
     self.patient_table_node = None # vtkMRMLTableNode
 
-    self.fio2_plot = SlicerPlotData("fio2")
-    self.addTab(self.fio2_plot.plot_view, "FiO2 plot")
+    self.fio2_line_plot = SlicerPlotData("fio2Line")
+    self.addTab(self.fio2_line_plot.plot_view, "FiO2 plot")
+    self.fio2_bar_plot = SlicerPlotData("fio2Bar")
+    self.addTab(self.fio2_bar_plot.plot_view, "FiO2 times")
 
   def set_table_node(self, table_node):
     """Set the patient table view to show the given vtkMRMLTableNode."""
@@ -293,9 +295,9 @@ class ClinicalParametersTabWidget(qt.QTabWidget): # TODO move this class to an a
     self.patient_table_node.SetName("ClinicalParamatersTabWidget_PatientTableNode")
     self.set_table_node(self.patient_table_node)
 
-  def set_fio2_plot(self, fio2_data):
+  def set_fio2_line_plot(self, fio2_data):
     """
-    Populate the fio2 plot with the data from the given numpy array.
+    Populate the fio2 line plot with the data from the given numpy array.
 
     Args:
       fio2_data: A numpy array of shape (N,2), where
@@ -303,11 +305,26 @@ class ClinicalParametersTabWidget(qt.QTabWidget): # TODO move this class to an a
         the second column is FiO2 %
     """
 
-    self.fio2_plot.set_plot_data(
+    self.fio2_line_plot.set_plot_data(
       data = fio2_data,
       x_axis_label = "time since unit admission (min)",
       y_axis_label = "FiO2 (%)",
       title = "FiO2",
+    )
+
+  def set_fio2_bar_plot(self, bins, total_times):
+    """
+    Populate the fio2 bar plot with the given data
+
+    Args:
+      (TODO)
+    """
+    self.fio2_bar_plot.set_plot_data(
+      data = np.array([np.array(bins).mean(axis=1) , total_times]).transpose(),
+      x_axis_label = "FiO2 range (%)",
+      y_axis_label = "Total time (min)",
+      title = "FiO2 times",
+      plot_type = "bar"
     )
 
 class HomeLogic(ScriptedLoadableModuleLogic):
@@ -490,14 +507,15 @@ class HomeLogic(ScriptedLoadableModuleLogic):
     print(f"We will pretend that this patient is {self.eicu.get_patient_id_from_unitstay(self.unitstay_id)} from the eICU dataset,"
       + f" with unit stay ID {self.unitstay_id}.")
 
-    fio2_data, average_fio2 = self.eicu.process_fio2_data_for_unitstay(self.unitstay_id)
+    fio2_data, average_fio2, bins, total_times = self.eicu.process_fio2_data_for_unitstay(self.unitstay_id)
 
     patient_df = self.eicu.get_patient_from_unitstay(self.unitstay_id).to_frame().reset_index()
     patient_df.columns = ["Parameter", "Value"]
     patient_df = pd.concat([patient_df, pd.DataFrame([{"Parameter":"Average FiO2", "Value":average_fio2}])])
 
     self.clinical_parameters_tabWidget.set_patient_df(patient_df)
-    self.clinical_parameters_tabWidget.set_fio2_plot(fio2_data.to_numpy())
+    self.clinical_parameters_tabWidget.set_fio2_line_plot(fio2_data.to_numpy())
+    self.clinical_parameters_tabWidget.set_fio2_bar_plot(bins, total_times)
 
 class HomeTest(ScriptedLoadableModuleTest):
   """

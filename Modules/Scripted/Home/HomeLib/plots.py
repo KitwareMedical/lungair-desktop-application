@@ -2,6 +2,13 @@ import slicer, qt
 from .constants import *
 
 
+PLOT_TYPES = {
+  "line" : slicer.vtkMRMLPlotSeriesNode.PlotTypeLine,
+  "bar" : slicer.vtkMRMLPlotSeriesNode.PlotTypeBar,
+  "scatter" : slicer.vtkMRMLPlotSeriesNode.PlotTypeScatter,
+  "scatterbar" : slicer.vtkMRMLPlotSeriesNode.PlotTypeScatterBar,
+}
+
 def createPlotView():
   """Create and return a qMRMLPlotView widget.
   It is associated to the main scene, and it also gets a button for fitToContent."""
@@ -45,7 +52,7 @@ class SlicerPlotData:
     self.plot_nodes = {} # chart, table, and series; see the parameter "nodes" in the doc of slicer.util.plot
 
 
-  def set_plot_data(self, data, x_axis_label:str, y_axis_label:str, title=None, legend_label=None):
+  def set_plot_data(self, data, x_axis_label:str, y_axis_label:str, title=None, legend_label=None, plot_type = "line"):
     """
     Populate the plot with the data from the given numpy array.
 
@@ -53,8 +60,9 @@ class SlicerPlotData:
       data: A numpy array of shape (N,2) containing the data to plot
       x_axis_label: the title of the x axis to display
       y_axis_label: the title of the y axis to display
-      title: plot title
+      title: plot title; also shows up in the names of helper nodes
       legend_label: the text to put in the legend
+      plot_type: one of "line", "bar", "scatter", or "scatterbar"
     """
 
     if title is None: title = self.name
@@ -77,6 +85,7 @@ class SlicerPlotData:
     plot_chart_node.SetYAxisTitle(y_axis_label)
     assert(len(self.plot_nodes["series"]) == 1)
     self.plot_nodes["series"][0].SetName(legend_label) # This text is displayed in the legend
+    self.plot_nodes["series"][0].SetPlotType(PLOT_TYPES[plot_type])
     self.plot_view_node.SetPlotChartNodeID(plot_chart_node.GetID())
 
     self.plot_view.setMRMLPlotViewNode(self.plot_view_node)

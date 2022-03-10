@@ -99,6 +99,8 @@ class Eicu:
         respchartoffset: time in minutes since unit admission
         respchartvalue_float: the FiO2 reading recorded for that time
       average_fio2: the average FiO2 value during the unit stay
+      bins: a list of pairs representing the start and end of FiO2 % bins, to go with total_times
+      total_times: array with the total time, in minutes, spent in each bin from bins
     """
     fio2_df = self.get_fio2_df()
     fio2_for_unitstay = fio2_df[fio2_df['patientunitstayid'] == unitstay_id]
@@ -117,4 +119,9 @@ class Eicu:
       # This is basically an integral to compute the average value:
       average_fio2 = (fio2_data_with_deltas['val_shifted']*fio2_data_with_deltas['delta_t']).sum() / total_fio2_time
 
-    return fio2_data, average_fio2
+    # Compute total time spent within each FiO2 value bin
+    bins = [[start, start+10] for start in range(0,100,10)]
+    total_times = [ fio2_data_with_deltas['delta_t'][(fio2_data_with_deltas['val_shifted']>=start) & (fio2_data_with_deltas['val_shifted']<end)].sum()
+      for start,end in bins ]
+
+    return fio2_data, average_fio2, bins, total_times
