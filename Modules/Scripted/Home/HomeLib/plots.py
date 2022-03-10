@@ -1,4 +1,4 @@
-import slicer, qt
+import slicer, qt, vtk
 from .constants import *
 
 
@@ -52,7 +52,7 @@ class SlicerPlotData:
     self.plot_nodes = {} # chart, table, and series; see the parameter "nodes" in the doc of slicer.util.plot
 
 
-  def set_plot_data(self, data, x_axis_label:str, y_axis_label:str, title=None, legend_label=None, plot_type = "line"):
+  def set_plot_data(self, data, x_axis_label:str, y_axis_label:str, title=None, legend_label=None, plot_type = "line", labels = None):
     """
     Populate the plot with the data from the given numpy array.
 
@@ -63,6 +63,7 @@ class SlicerPlotData:
       title: plot title; also shows up in the names of helper nodes
       legend_label: the text to put in the legend
       plot_type: one of "line", "bar", "scatter", or "scatterbar"
+      labels: a list of string labels-- this may only matter for bar or scatterbar plot types
     """
 
     if title is None: title = self.name
@@ -87,5 +88,14 @@ class SlicerPlotData:
     self.plot_nodes["series"][0].SetName(legend_label) # This text is displayed in the legend
     self.plot_nodes["series"][0].SetPlotType(PLOT_TYPES[plot_type])
     self.plot_view_node.SetPlotChartNodeID(plot_chart_node.GetID())
+
+    if labels is not None:
+      labels_array = vtk.vtkStringArray()
+      for label in labels:
+        labels_array.InsertNextValue(label)
+      label_column_name = x_axis_label+" Label"
+      labels_array.SetName(label_column_name)
+      self.plot_nodes['table'].AddColumn(labels_array)
+      self.plot_nodes["series"][0].SetLabelColumnName(label_column_name)
 
     self.plot_view.setMRMLPlotViewNode(self.plot_view_node)
