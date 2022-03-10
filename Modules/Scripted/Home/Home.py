@@ -7,9 +7,10 @@ import logging
 from slicer.util import VTKObservationMixin
 from HomeLib import dependency_installer
 from HomeLib.image_utils import *
+from HomeLib.plots import *
 import HomeLib.xray as xray
+from HomeLib.constants import *
 
-BAR_WIDGET_COLOR = "656DA4"
 class Home(ScriptedLoadableModule):
   """Uses ScriptedLoadableModule base class, available at:
   https://github.com/Slicer/Slicer/blob/master/Base/Python/slicer/ScriptedLoadableModule.py
@@ -265,33 +266,7 @@ def tableNodeFromDataFrame(df, editable = False):
   tableNode.SetLocked(not editable)
   return tableNode
 
-# TODO: move this to an appropriate place
-def createPlotView():
-  """Create and return a qMRMLPlotView widget.
-  It is associated to the main scene, and it also gets a button for fitToContent."""
-  plot_view = slicer.qMRMLPlotView()
-  plot_view.setMRMLScene(slicer.mrmlScene)
 
-  fit_plot_tool_button = qt.QToolButton()
-  fit_plot_tool_button.clicked.connect(lambda: plot_view.fitToContent())
-
-  # Put the QToolButton in the top right corner of the plot
-  assert(plot_view.layout() is None) # failure here indicates a slicer change in which plot views gained layouts, which we should take care not to replace
-  plot_view.setLayout(qt.QHBoxLayout())
-  plot_view.layout().insertWidget(1,fit_plot_tool_button,0,qt.Qt.AlignTop)
-  spacer = qt.QSpacerItem(20,20,qt.QSizePolicy.Expanding, qt.QSizePolicy.Expanding)
-  plot_view.layout().insertItem(0,spacer)
-  plot_view.layout().margin=0
-
-  # Give it a nice appearance
-  fit_plot_tool_button.setIconSize(qt.QSize(10,10))
-  fit_plot_tool_button.setIcon(qt.QIcon(":Icons/SlicesFitToWindow.png"))
-  fit_plot_tool_button.setStyleSheet(f"background-color:#{BAR_WIDGET_COLOR};")
-  fit_plot_tool_button.setAutoRaise(True)
-
-  fit_plot_tool_button.setToolTip("Reset zoom to fit entire plot")
-
-  return plot_view
 
 class ClinicalParametersTabWidget(qt.QTabWidget): # TODO move this class to an appropriate place
   def __init__(self):
@@ -302,14 +277,8 @@ class ClinicalParametersTabWidget(qt.QTabWidget): # TODO move this class to an a
     self.addTab(self.patient_table_view, "Patient data")
     self.patient_table_node = None # vtkMRMLTableNode
 
-    self.fio2_plot_view = createPlotView()
-    self.fio2_plot_view_node = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLPlotViewNode", "fio2PlotViewNode")
-    self.fio2_plot_view.setMRMLPlotViewNode(self.fio2_plot_view_node)
-    self.addTab(self.fio2_plot_view, "FiO2 plot")
-    self.fio2_plot_nodes = {} # chart, table, and series; see the parameter "nodes" in the doc of slicer.util.plot
-
-    # A plot view node we will keep empty in order to have a way of displaying no plot
-    self.empty_plot_view_node = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLPlotViewNode", "clinicalParamatersWidgetEmptyPlotViewNode")
+    self.fio2_plot = SlicerPlotData("fio2")
+    self.addTab(self.fio2_plot.plot_view, "FiO2 plot")
 
   def set_table_node(self, table_node):
     """Set the patient table view to show the given vtkMRMLTableNode."""
@@ -334,26 +303,12 @@ class ClinicalParametersTabWidget(qt.QTabWidget): # TODO move this class to an a
         the second column is FiO2 %
     """
 
-    if len(fio2_data.shape)!=2 or fio2_data.shape[1]!=2:
-      raise ValueError(f"fio2_data was expected to be a numpy array of shape (N,2), got {tuple(fio2_data.shape)}")
-
-    # To solve github.com/KitwareMedical/lungair-desktop-application/issues/27
-    # we avoid changing plots while they are associated to a plot view.
-    self.fio2_plot_view.setMRMLPlotViewNode(self.empty_plot_view_node)
-
-    plot_chart_node = slicer.util.plot(
-      fio2_data, 0, show = False,
+    self.fio2_plot.set_plot_data(
+      data = fio2_data,
+      x_axis_label = "time since unit admission (min)",
+      y_axis_label = "FiO2 (%)",
       title = "FiO2",
-      columnNames = ["time since unit admission (min)", "FiO2 (%)"],
-      nodes = self.fio2_plot_nodes
     )
-    plot_chart_node.SetXAxisTitle("time since unit admission (min)")
-    plot_chart_node.SetYAxisTitle("FiO2 (%)")
-    assert(len(self.fio2_plot_nodes["series"]) == 1)
-    self.fio2_plot_nodes["series"][0].SetName("FiO2") # This text is displayed in the legend
-    self.fio2_plot_view_node.SetPlotChartNodeID(plot_chart_node.GetID())
-
-    self.fio2_plot_view.setMRMLPlotViewNode(self.fio2_plot_view_node)
 
 class HomeLogic(ScriptedLoadableModuleLogic):
   """This class should implement all the actual
