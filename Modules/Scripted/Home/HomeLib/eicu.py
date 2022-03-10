@@ -48,7 +48,7 @@ class Eicu:
 
     # Load respiratory charting table
     self.respiratory_charting_df = pd.read_csv(
-      os.path.join(eICU_dir,"respiratoryCharting.csv.gz"),
+      os.path.join(eICU_dir,"respiratoryCharting_SUBSET.csv"),
       dtype = get_dtype_dict(os.path.join(schema_dir, "respiratoryCharting.txt"))
     )
 
