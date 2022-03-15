@@ -52,18 +52,18 @@ class SlicerPlotData:
     self.plot_nodes = {} # chart, table, and series; see the parameter "nodes" in the doc of slicer.util.plot
 
 
-  def set_plot_data(self, data, x_axis_label:str, y_axis_label:str, title=None, legend_label=None, plot_type = "line", labels = None):
+  def set_plot_data(self, data, x_axis_label=None, y_axis_label=None, title=None, legend_label=None, plot_type="line", labels=None):
     """
     Populate the plot with the data from the given numpy array.
 
     Args:
-      data: A numpy array of shape (N,2) containing the data to plot
-      x_axis_label: the title of the x axis to display
-      y_axis_label: the title of the y axis to display
+      data: a numpy array of shape (N,2) containing the data to plot
+      x_axis_label: the title of the x-axis to display
+      y_axis_label: the title of the y-axis to display
       title: plot title; also shows up in the names of helper nodes
       legend_label: the text to put in the legend
       plot_type: one of "line", "bar", "scatter", or "scatterbar"
-      labels: a list of string labels-- this may only matter for bar or scatterbar plot types
+      labels: a list of string labels-- this affects bar and scatterbar plot types
     """
 
     if title is None: title = self.name
@@ -72,18 +72,25 @@ class SlicerPlotData:
     if len(data.shape)!=2 or data.shape[1]!=2:
       raise ValueError(f"data was expected to be a numpy array of shape (N,2), got {tuple(data.shape)}")
 
-    # To solve github.com/KitwareMedical/lungair-desktop-application/issues/27
-    # we avoid changing plots while they are associated to a plot view.
+    # Here we avoid changing plots while they are associated to a plot view.
+    # This is to supress an error that otherwise shows up
+    # (see e.g. https://github.com/KitwareMedical/lungair-desktop-application/issues/27).
     self.plot_view.setMRMLPlotViewNode(self.empty_plot_view_node)
+
+    if x_axis_label is not None and y_axis_label is not None:
+      columnNames = [x_axis_label, y_axis_label]
+    else:
+      columnNames = None
 
     plot_chart_node = slicer.util.plot(
       data, 0, show = False,
       title = title,
-      columnNames = [x_axis_label, y_axis_label],
+      columnNames = columnNames,
       nodes = self.plot_nodes
     )
     plot_chart_node.SetXAxisTitle(x_axis_label)
-    plot_chart_node.SetYAxisTitle(y_axis_label)
+    if y_axis_label is not None:
+      plot_chart_node.SetYAxisTitle(y_axis_label)
     assert(len(self.plot_nodes["series"]) == 1)
     self.plot_nodes["series"][0].SetName(legend_label) # This text is displayed in the legend
     self.plot_nodes["series"][0].SetPlotType(PLOT_TYPES[plot_type])
@@ -93,7 +100,7 @@ class SlicerPlotData:
       labels_array = vtk.vtkStringArray()
       for label in labels:
         labels_array.InsertNextValue(label)
-      label_column_name = x_axis_label+" Label"
+      label_column_name = (x_axis_label if x_axis_label else "X-axis") + " Label"
       labels_array.SetName(label_column_name)
       self.plot_nodes['table'].AddColumn(labels_array)
       self.plot_nodes["series"][0].SetLabelColumnName(label_column_name)
