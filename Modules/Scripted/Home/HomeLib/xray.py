@@ -108,9 +108,9 @@ def load_dicom_dir(dicomDataDir, pluginName, validate_dict = None, validate_mode
 
 # The DICOM validation function that we will use for NICU chest x-rays
 validate_nicu_cxr = {
-  "0018,5101" : ["AP","PA"],
-  "0008,0060" : ["RG","DX","CR"],
-  "0018,0015" : ["CHEST"],
+  "0018,5101" : ["AP","PA"], # view position
+  "0008,0060" : ["RG","DX","CR"], # modality
+  "0018,0015" : ["CHEST"], # body part examined
 }
 
 def load_xrays(path:str, seg_model, image_format=None):
