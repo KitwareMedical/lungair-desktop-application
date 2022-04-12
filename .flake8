@@ -16,28 +16,16 @@ format = pylint
 exclude = .git,__pycache__
 
 ignore = \
-  # Do not use bare `except:`, it also catches unexpected events like memory errors, interrupts, system exit, and so on.
-  B001, \
-  # Do not use mutable data structures for argument defaults.
-  B006, \
   # Indentation is not a multiple of four
   E111, \
   # Indentation is not a multiple of four (comment)
   E114, \
-  # unexpected indentation (comment)
-  E116, \
-  # over-indented
-  E117, \
   # continuation line under-indented for hanging indent
   E121, \
   # closing bracket does not match indentation of opening bracket's line
   E123, \
   # closing bracket does not match visual indentation
   E124, \
-  # continuation line over-indented for hanging indent
-  E126, \
-  # continuation line over-indented for visual indent
-  E127, \
   # continuation line under-indented for visual indent
   E128, \
   # whitespace after '('
@@ -46,8 +34,6 @@ ignore = \
   E202, \
   # whitespace before ','
   E203, \
-  # multiple spaces before operator
-  E221, \
   # multiple spaces after operator
   E222, \
   # missing whitespace around operator
@@ -62,8 +48,6 @@ ignore = \
   E251, \
   # at least two spaces before inline comment
   E261, \
-  # multiple spaces after keyword
-  E271, \
   # expected 2 blank lines, found 1
   E302, \
   # too many blank lines
@@ -74,12 +58,8 @@ ignore = \
   E306, \
   # multiple imports on one line
   E401, \
-  # module level import not at top of file
-  E402, \
   # multiple statements on one line (colon)
   E701, \
-  # do not use bare 'except'
-  E722, \
   # ambiguous variable name 'l'
   E741, \
   # imported but unused
@@ -96,8 +76,6 @@ ignore = \
   F841, \
   # no newline at end of file
   W292, \
-  # blank line contains whitespace
-  W293, \
   # line break before binary operator
   W503, \
   # line break after binary operator
