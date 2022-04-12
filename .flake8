@@ -74,8 +74,6 @@ ignore = \
   F541, \
   # local variable is assigned to but never used
   F841, \
-  # no newline at end of file
-  W292, \
   # line break before binary operator
   W503, \
   # line break after binary operator
