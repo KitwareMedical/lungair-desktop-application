@@ -1,6 +1,5 @@
 from genericpath import exists
 import os
-from torch._C import Node
 import vtk, qt, ctk, slicer
 from slicer.ScriptedLoadableModule import *
 import logging
