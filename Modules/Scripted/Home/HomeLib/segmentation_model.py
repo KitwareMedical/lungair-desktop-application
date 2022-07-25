@@ -41,6 +41,19 @@ class SegmentationModel:
 
     self.seg_post_process = SegmentationPostProcessing()
 
+    # set dropout and batch normalization layers to evaluation mode before running
+    # inference
+    tmp = self.seg_net.eval()
+
+    # If we haven't already, write out a TorchScript version of the model, for use in
+    # MONAI Deploy.  For save_path, remove trailing .pth if present; append .zip
+    save_path = re.sub("\.pth$", "", load_path) + ".zip"
+    self.write_torchscript(self.seg_net, save_path, overwrite=False)
+
+  def write_torchscript(self, seg_net, save_path, overwrite):
+    if overwrite or not os.path.exists(save_path):
+      torch.jit.script(seg_net).save(save_path)
+
   def run_inference(self, img):
     """
     Execute segmentation model on a chest xray, given as an array of shape (height, width).
