@@ -27,7 +27,13 @@ def check_and_install_package(module_names, pip_install_name, pre_install_hook =
     modules = []
     for module_name in module_names:
       modules.append(importlib.import_module(module_name))
-    version_text = '\n'.join([f'  {module_name} version: {module.__version__}' for module, module_name in zip(modules, module_names)])
+    version_text = "\n".join(
+        [
+            f"  {module_name} version: {module.__version__}"
+            for module, module_name in zip(modules, module_names)
+            if hasattr(module, "__version__")
+        ]
+    )
     slicer.util.infoDisplay("Modules found!\n" + version_text, "Modules Found")
     return True
   except ModuleNotFoundError as e1:
@@ -59,4 +65,9 @@ def monai_pre_install():
 check_and_install_itk = functools.partial(check_and_install_package, ["itk"], "itk")
 check_and_install_pandas = functools.partial(check_and_install_package, ["pandas"], "pandas")
 check_and_install_matplotlib = functools.partial(check_and_install_package, ["matplotlib"], "matplotlib")
-check_and_install_monai = functools.partial(check_and_install_package, ["monai", "skimage", "tqdm"], "monai[skimage,tqdm]", monai_pre_install)
+check_and_install_monai = functools.partial(
+    check_and_install_package,
+    ["monai", "skimage", "tqdm", "PIL", "ignite", "gdown", "nibabel", "monai.transforms", "monai.deploy.core"],
+    "monai[skimage,tqdm,pillow,ignite,gdown,nibabel,transformers] monai-deploy-app-sdk",
+    monai_pre_install,
+)
