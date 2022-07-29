@@ -123,8 +123,9 @@ class SegmentationOperator(mdc.Operator):
         if len(img_input.shape) != 3 or img_input.shape[0] != 1:
             raise ValueError("img_input must be a 2D array")
         img_tensor = mt.ToTensor()(img_input)
-        # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        device = "cpu"
+
+        # Note that the model seems to be gpu based, so device=="cpu" may fail.
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         img_on_device = img_tensor.to(device)
 
         model = context.models.get()  # get a TorchScriptModel object
