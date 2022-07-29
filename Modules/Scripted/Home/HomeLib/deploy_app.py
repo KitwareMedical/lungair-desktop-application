@@ -23,12 +23,17 @@ import torch
 
 @mdc.input("img_path", mdc.DataPath, mdc.IOType.DISK)
 @mdc.output("img", mdc.Image, mdc.IOType.IN_MEMORY)
+@mdc.output("model_to_img_matrix", mdc.Image, mdc.IOType.IN_MEMORY)
 @mdc.env(pip_packages=["monai", "numpy", "pillow"])
 class LoadPILOperator(mdc.Operator):
     """
     Load image from the given input (mdc.DataPath) and set numpy array to the output
     (mdc.Image).
     """
+
+    @property
+    def image_size(self):
+        return 256
 
     def compute(
         self,
@@ -49,7 +54,10 @@ class LoadPILOperator(mdc.Operator):
         if len(image_arr.shape) != 2:
             raise ValueError("image must be a 2D array")
         output_image = mdc.Image(image_arr)
-        op_output.set(output_image)
+        op_output.set(output_image, "img")
+
+        model_to_img_matrix = np.diag(np.array(image_arr.shape) / self.image_size)
+        op_output.set(mdc.Image(model_to_img_matrix), "model_to_img_matrix")
 
 
 @mdc.input("img", mdc.Image, mdc.IOType.IN_MEMORY)
@@ -70,7 +78,7 @@ class PreprocessOperator(mdc.Operator):
         import monai.transforms as mt
         import numpy as np
 
-        # Note that we removed the last step mt.ToTensor()
+        # Note that we removed the last: step mt.ToTensor()
         cast_to_type = mt.CastToType(dtype=np.float32)
         add_channel = mt.AddChannel()
         resize = mt.Resize(
@@ -97,16 +105,11 @@ class PreprocessOperator(mdc.Operator):
 
 @mdc.input("img_input", mdc.Image, mdc.IOType.IN_MEMORY)
 @mdc.output("seg_mask", mdc.Image, mdc.IOType.IN_MEMORY)
-@mdc.output("model_to_img_matrix", mdc.Image, mdc.IOType.IN_MEMORY)
 @mdc.env(pip_packages=["monai"])
 class SegmentationOperator(mdc.Operator):
     """
     Segment image, from numpy array input to numpy array output.
     """
-
-    @property
-    def image_size(self):
-        return 256
 
     def compute(
         self,
@@ -140,25 +143,16 @@ class SegmentationOperator(mdc.Operator):
         _, max_indices = seg_net_output.max(dim=0)
         seg_mask = (max_indices == 1).type(torch.uint8)
 
-        model_to_img_matrix = np.diag(np.array(img_input[0].shape) / self.image_size)
-
         op_output.set(mdc.Image(seg_mask.cpu().numpy()), "seg_mask")
-        op_output.set(mdc.Image(model_to_img_matrix), "model_to_img_matrix")
 
 
 @mdc.input("seg_mask", mdc.Image, mdc.IOType.IN_MEMORY)
-@mdc.input("model_to_img_matrix", mdc.Image, mdc.IOType.IN_MEMORY)
 @mdc.output("seg_processed", mdc.Image, mdc.IOType.IN_MEMORY)
-@mdc.output("model_to_img_matrix", mdc.Image, mdc.IOType.IN_MEMORY)
 @mdc.env(pip_packages=["monai"])
 class PostprocessOperator(mdc.Operator):
     """
     Apply post-processing of image, from numpy array input to numpy array output.
     """
-
-    @property
-    def image_size(self):
-        return 256
 
     @property
     def postprocess(self):
@@ -175,7 +169,6 @@ class PostprocessOperator(mdc.Operator):
     ):
         import monai.deploy.core as mdc
 
-        op_output.set(op_input.get("model_to_img_matrix"), "model_to_img_matrix")
         if False:
             # Use SegmentationPostProcessing once it works
             img_input = op_input.get("seg_mask").asnumpy()
@@ -211,9 +204,9 @@ class SavePILOperator(mdc.Operator):
         output_path = os.path.join(output_directory, "mask.png")
         img_pil.save(output_path)
 
-        img_input = op_input.get("model_to_img_matrix").asnumpy()
+        model_to_img_matrx = op_input.get("model_to_img_matrix").asnumpy()
         output_path = os.path.join(output_directory, "model_to_img_matrix")
-        np.save(output_path, img_input)
+        np.save(output_path, model_to_img_matrx)
 
 
 @mdc.resource(cpu=1, gpu=1, memory="1Gi")
@@ -231,18 +224,11 @@ class App(mdc.Application):
 
         self.add_flow(load_pil_op, preprocess_op, {"img": "img"})
         self.add_flow(preprocess_op, segmentation_op, {"img_input": "img_input"})
+        self.add_flow(segmentation_op, postprocess_op, {"seg_mask": "seg_mask"})
+        self.add_flow(postprocess_op, save_pil_op, {"seg_processed": "seg_processed"})
+
         self.add_flow(
-            segmentation_op,
-            postprocess_op,
-            {"seg_mask": "seg_mask", "model_to_img_matrix": "model_to_img_matrix"},
-        )
-        self.add_flow(
-            postprocess_op,
-            save_pil_op,
-            {
-                "seg_processed": "seg_processed",
-                "model_to_img_matrix": "model_to_img_matrix",
-            },
+            load_pil_op, save_pil_op, {"model_to_img_matrix": "model_to_img_matrix"}
         )
 
 
