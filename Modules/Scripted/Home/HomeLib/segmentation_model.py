@@ -30,7 +30,7 @@ class SegmentationModel:
 
     self.load_pth_path = load_pth_path
     # For save_zip_path, remove trailing .pth if present; append .zip
-    self.save_zip_path = re.sub("\.pth$", "", self.load_pth_path) + ".zip"
+    self.save_zip_path = re.sub(r"\.pth$", "", self.load_pth_path) + ".zip"
 
     if self.model_source == self.ModelSource.USE_PTH:
       model_dict = torch.load(self.load_pth_path, map_location=torch.device('cpu'))

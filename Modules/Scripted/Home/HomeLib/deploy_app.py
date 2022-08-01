@@ -17,6 +17,7 @@
 import monai.deploy.core as mdc
 import monai.transforms as mt
 import numpy as np
+import os
 import PIL
 import torch
 
@@ -41,10 +42,6 @@ class LoadPILOperator(mdc.Operator):
         op_output: mdc.OutputContext,
         context: mdc.ExecutionContext,
     ):
-        import monai.deploy.core as mdc
-        import numpy as np
-        import PIL
-
         input_path = op_input.get().path
         if input_path.is_dir():
             input_path = next(input_path.glob("*.*"))  # take the first file
@@ -74,10 +71,6 @@ class PreprocessOperator(mdc.Operator):
 
     @property
     def preprocess(self):
-        import monai.deploy.core as mdc
-        import monai.transforms as mt
-        import numpy as np
-
         # Note that we removed the last: step mt.ToTensor()
         cast_to_type = mt.CastToType(dtype=np.float32)
         add_channel = mt.AddChannel()
@@ -95,8 +88,6 @@ class PreprocessOperator(mdc.Operator):
         op_output: mdc.OutputContext,
         context: mdc.ExecutionContext,
     ):
-        import monai.deploy.core as mdc
-
         img_input = op_input.get().asnumpy()
         img_preprocessed = self.preprocess(img_input)
         img_output = mdc.Image(img_preprocessed)
@@ -117,11 +108,6 @@ class SegmentationOperator(mdc.Operator):
         op_output: mdc.OutputContext,
         context: mdc.ExecutionContext,
     ):
-        import monai.deploy.core as mdc
-        import monai.transforms as mt
-        import numpy as np
-        import torch
-
         img_input = op_input.get().asnumpy()  # shape=(1, 256, 256), dtype=float32
         if len(img_input.shape) != 3 or img_input.shape[0] != 1:
             raise ValueError("img_input must be a 2D array")
@@ -156,8 +142,6 @@ class PostprocessOperator(mdc.Operator):
 
     @property
     def postprocess(self):
-        import monai.transforms as mt
-
         # Instead use SegmentationPostProcessing once it works
         return mt.Compose([])
 
@@ -167,13 +151,11 @@ class PostprocessOperator(mdc.Operator):
         op_output: mdc.OutputContext,
         context: mdc.ExecutionContext,
     ):
-        import monai.deploy.core as mdc
-
         if False:
             # Use SegmentationPostProcessing once it works
             img_input = op_input.get("seg_mask").asnumpy()
             img_postprocessed = self.postprocess(img_input)
-            img_output = mdc.Image(img_output)
+            img_output = mdc.Image(img_postprocessed)
             op_output.set(img_output, "seg_processed")
         else:
             op_output.set(op_input.get("seg_mask"), "seg_processed")
@@ -194,9 +176,6 @@ class SavePILOperator(mdc.Operator):
         op_output: mdc.OutputContext,
         context: mdc.ExecutionContext,
     ):
-        import os
-        import PIL
-
         output_directory = op_output.get("output_directory").path
         os.makedirs(output_directory, exist_ok=True)
         img_input = op_input.get("seg_processed").asnumpy()
