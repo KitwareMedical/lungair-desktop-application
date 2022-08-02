@@ -9,6 +9,7 @@ import os
 import PIL
 import re
 import shutil
+import slicer
 import tempfile
 import torch
 from .segmentation_post_processing import SegmentationPostProcessing
@@ -64,7 +65,7 @@ class SegmentationModel:
       seg_net = model_dict['model']
       # set dropout and batch normalization layers to evaluation mode before running
       # inference
-      tmp = seg_net.eval()
+      seg_net.eval()
       torch.jit.script(seg_net).save(self.save_zip_path)
 
   def run_inference(self, img):
@@ -99,8 +100,8 @@ class SegmentationModel:
 
       model_to_img_matrix = np.diag(np.array(img.shape)/self.image_size)
 
-      # TODO returning early because post processing causes crash due to ITK python issues
-      # seg_processed = self.seg_post_process(seg_mask)
+      # TODO skipping post processing because post processing causes crash due to ITK
+      # python issues seg_processed = self.seg_post_process(seg_mask)
       seg_processed = seg_mask
 
     if self.model_source in (self.ModelSource.USE_LOCAL_ZIP, self.ModelSource.USE_DOCKER_ZIP):
@@ -117,16 +118,24 @@ class SegmentationModel:
       img_pil.save(input_file_path)
 
       # Run monai-deploy
+      monai_deploy_path = shutil.which("monai-deploy")
       if self.model_source == self.ModelSource.USE_LOCAL_ZIP:
         deploy_app_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "deploy_app.py")
-        process_image_command = f"monai-deploy exec {deploy_app_path} -m {self.save_zip_path} -i {input_dir_path} -o {output_dir_path}"
+        process_image_command = [monai_deploy_path,
+                                 "exec", deploy_app_path,
+                                 "-m", self.save_zip_path,
+                                 "-i", input_dir_path,
+                                 "-o", output_dir_path]
       if self.model_source == self.ModelSource.USE_DOCKER_ZIP:
-        # TODO: Unfortunately, this docker image appears to require CUDA 11.3!!!
+        # TODO: Unfortunately, this docker image appears to require CUDA 11.3.
         docker_image = "lung_air_app:latest"
-        # Note: to create the docker image, use
-        # f"monai-deploy package {deploy_app_path} --tag {docker_image} --model {self.save_zip_path}"
-        process_image_command = f"monai-deploy run {docker_image} {input_dir_path} {output_dir_path}"
-      os.system(process_image_command)
+        # Note: to *create* the docker image, use
+        # f"{monai_deploy_path} package {deploy_app_path} --tag {docker_image} --model {self.save_zip_path}"
+        process_image_command = [monai_deploy_path,
+                                 "run", docker_image,
+                                 input_dir_path, output_dir_path]
+      proc = slicer.util.launchConsoleProcess(process_image_command, useStartupEnvironment=False)
+      slicer.util.logProcessOutput(proc)
 
       # Read output files
       seg_processed = torch.from_numpy(np.asarray(PIL.Image.open(output_mask_path)))
