@@ -21,13 +21,13 @@ class SegmentationModel:
       USE_LOCAL_ZIP = 1
       USE_DOCKER_ZIP = 2
 
-  def __init__(self, load_pth_path):
+  def __init__(self, load_pth_path, backend_to_use):
     """
     This class provides a way to interface with a lung segmentation model trained in MONAI.
     It loads the model on construction, and it handles loading and transforming
     images and running inference.
     """
-    self.model_source = self.ModelSource.USE_PTH
+    self.model_source = self.ModelSource[backend_to_use]
 
     self.load_pth_path = load_pth_path
     # For save_zip_path, remove trailing .pth if present; append .zip

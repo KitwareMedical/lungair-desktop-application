@@ -193,7 +193,7 @@ class Xray:
     self.volume_node = None
     self.model_to_ras_transform_node = None
 
-  def add_segmentation(self):
+  def add_segmentation(self, backend_to_use : str):
     """
     Run segmentation model for this xray if it hasn't already been done.
     Creates an associated slicer segmentation node.
@@ -201,7 +201,12 @@ class Xray:
     if self.has_seg():
       return
 
-    self.seg_mask_tensor, model_to_image_matrix = self.seg_model.run_inference(self.get_numpy_array())
+    # If the seg_model is the wrong type, replace it
+    if self.seg_model['model'].model_source != self.seg_model['model'].ModelSource[backend_to_use]:
+      from HomeLib.segmentation_model import SegmentationModel
+      self.seg_model['model'] = SegmentationModel(self.seg_model['model_path'], backend_to_use)
+    # Use the seg_model
+    self.seg_mask_tensor, model_to_image_matrix = self.seg_model['model'].run_inference(self.get_numpy_array())
 
     self.seg_node = create_segmentation_node_from_numpy_array(
       self.seg_mask_tensor.numpy(),
@@ -434,9 +439,9 @@ class XrayCollection(dict):
     self.xray_display_manager.set_xray_segmentation_visibility(self.selected_xray(), True)
     self.xray_display_manager.show_xray(self.selected_xray())
 
-  def segment_selected(self):
+  def segment_selected(self, backend_to_use : str):
     """Add a segmentation for the selected xray and make it the visible segmentation."""
-    self.selected_xray().add_segmentation()
+    self.selected_xray().add_segmentation(backend_to_use)
 
     # Make all segmentations invisible except the selected one
     for xray in self.values():
