@@ -127,10 +127,12 @@ class SegmentationModel:
                                  "-i", input_dir_path,
                                  "-o", output_dir_path]
       if self.model_source == self.ModelSource.USE_DOCKER_ZIP:
-        # TODO: Unfortunately, this docker image appears to require CUDA 11.3.
-        docker_image = "lung_air_app:latest"
+        # TODO: Unfortunately, this docker image appears to require CUDA>=11.3.
+        docker_image = "ghcr.io/kitwaremedical/lungair-desktop-application/lung_air_model_deploy:latest"
         # Note: to *create* the docker image, use
         # f"{monai_deploy_path} package {deploy_app_path} --tag {docker_image} --model {self.save_zip_path}"
+        # f"echo {CR_PAT} | docker login -u {User} --password-stdin ghcr.io"
+        # f"docker push {docker_image}"
         process_image_command = [monai_deploy_path,
                                  "run", docker_image,
                                  input_dir_path, output_dir_path]
