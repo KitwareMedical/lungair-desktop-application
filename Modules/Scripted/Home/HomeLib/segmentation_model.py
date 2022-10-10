@@ -16,10 +16,14 @@ from .segmentation_post_processing import SegmentationPostProcessing
 
 
 class SegmentationModel:
-  class ModelSource(enum.Enum):
-      USE_PTH = 0
-      USE_LOCAL_ZIP = 1
-      USE_DOCKER_ZIP = 2
+  class NoValue(enum.Enum):
+    def __repr__(self):
+      return '<%s.%s>' % (self.__class__.__name__, self.name)
+
+  class ModelSource(NoValue):
+      TORCHSCRIPT_ONLY = 'TorchScript only'
+      LOCAL_DEPLOY = 'MONAI Deploy via command line'
+      DOCKER_DEPLOY = 'MONAI Deploy via docker image'
 
   def __init__(self, load_pth_path, backend_to_use):
     """
@@ -27,13 +31,13 @@ class SegmentationModel:
     It loads the model on construction, and it handles loading and transforming
     images and running inference.
     """
-    self.model_source = self.ModelSource[backend_to_use]
+    self.model_source = backend_to_use
 
     self.load_pth_path = load_pth_path
     # For save_zip_path, remove trailing .pth if present; append .zip
     self.save_zip_path = re.sub(r"\.pth$", "", self.load_pth_path) + ".zip"
 
-    if self.model_source == self.ModelSource.USE_PTH:
+    if self.model_source == self.ModelSource.TORCHSCRIPT_ONLY:
       model_dict = torch.load(self.load_pth_path, map_location=torch.device('cpu'))
 
       self.seg_net = model_dict['model']
@@ -59,7 +63,7 @@ class SegmentationModel:
 
       self.seg_post_process = SegmentationPostProcessing()
 
-    if self.model_source in (self.ModelSource.USE_LOCAL_ZIP, self.ModelSource.USE_DOCKER_ZIP) and not os.path.exists(self.save_zip_path):
+    if self.model_source in (self.ModelSource.LOCAL_DEPLOY, self.ModelSource.DOCKER_DEPLOY) and not os.path.exists(self.save_zip_path):
       # Write out a TorchScript version of the model, for use in MONAI Deploy.
       model_dict = torch.load(self.load_pth_path, map_location=torch.device('cpu'))
       seg_net = model_dict['model']
@@ -87,7 +91,7 @@ class SegmentationModel:
     if len(img.shape) != 2:
       raise ValueError("img must be a 2D array")
 
-    if self.model_source == self.ModelSource.USE_PTH:
+    if self.model_source == self.ModelSource.TORCHSCRIPT_ONLY:
       self.seg_net.eval()
       img_input = self.transform(img)
       seg_net_output = self.seg_net(img_input.unsqueeze(0))[0]
@@ -104,7 +108,7 @@ class SegmentationModel:
       # python issues seg_processed = self.seg_post_process(seg_mask)
       seg_processed = seg_mask
 
-    if self.model_source in (self.ModelSource.USE_LOCAL_ZIP, self.ModelSource.USE_DOCKER_ZIP):
+    if self.model_source in (self.ModelSource.LOCAL_DEPLOY, self.ModelSource.DOCKER_DEPLOY):
       # Communicate with monai deploy via files.  Locations are:
       input_dir_path = tempfile.mkdtemp()
       output_dir_path = tempfile.mkdtemp()
@@ -119,14 +123,14 @@ class SegmentationModel:
 
       # Run monai-deploy
       monai_deploy_path = shutil.which("monai-deploy")
-      if self.model_source == self.ModelSource.USE_LOCAL_ZIP:
+      if self.model_source == self.ModelSource.LOCAL_DEPLOY:
         deploy_app_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "deploy_app.py")
         process_image_command = [monai_deploy_path,
                                  "exec", deploy_app_path,
                                  "-m", self.save_zip_path,
                                  "-i", input_dir_path,
                                  "-o", output_dir_path]
-      if self.model_source == self.ModelSource.USE_DOCKER_ZIP:
+      if self.model_source == self.ModelSource.DOCKER_DEPLOY:
         # TODO: Unfortunately, this docker image appears to require CUDA>=11.3.
         docker_image = "ghcr.io/kitwaremedical/lungair-desktop-application/lung_air_model_deploy:latest"
         # Note: to *create* the docker image, use

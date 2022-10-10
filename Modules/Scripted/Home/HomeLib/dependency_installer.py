@@ -67,7 +67,7 @@ check_and_install_pandas = functools.partial(check_and_install_package, ["pandas
 check_and_install_matplotlib = functools.partial(check_and_install_package, ["matplotlib"], "matplotlib")
 check_and_install_monai = functools.partial(
     check_and_install_package,
-    ["monai", "skimage", "tqdm", "PIL", "ignite", "gdown", "nibabel", "monai.transforms", "monai.deploy.core"],
-    "monai[skimage,tqdm,pillow,ignite,gdown,nibabel,transformers] monai-deploy-app-sdk",
+    ["monai", "skimage", "tqdm", "PIL", "monai.transforms", "monai.deploy.core"],
+    "monai[skimage,tqdm,pillow,transformers] monai-deploy-app-sdk",
     monai_pre_install,
 )

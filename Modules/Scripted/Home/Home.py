@@ -41,6 +41,15 @@ class HomeWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
 
   def setup(self):
+    try:
+      from HomeLib.segmentation_model import SegmentationModel
+    except Exception as e:
+      # We cannot use slicer.util.errorDisplay here because there is no main window (it will only log an error and not raise a popup).
+      qt.QMessageBox.critical(slicer.util.mainWindow(), "Error importing segmentation model",
+        "Error importing segmentation model. If python dependencies are not installed, install them and restart the application. \nDetails: "+str(e)
+      )
+      return False
+
     ScriptedLoadableModuleWidget.setup(self)
 
     # (Previously we were loading widget from .ui file; keep this commented out here temporarily)
@@ -107,13 +116,17 @@ class HomeWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     add_install_button("pandas", dependency_installer.check_and_install_pandas)
     add_install_button("matplotlib", dependency_installer.check_and_install_matplotlib)
     backendComboBox = qt.QComboBox()
-    backendComboBox.addItems(["USE_PTH", "USE_LOCAL_ZIP", "USE_DOCKER_ZIP"])
+    backendComboBox.addItems([
+      SegmentationModel.ModelSource.TORCHSCRIPT_ONLY.value,
+      SegmentationModel.ModelSource.LOCAL_DEPLOY.value,
+      SegmentationModel.ModelSource.DOCKER_DEPLOY.value,
+    ])
     def backendChanged(index):
-      self.backendToUse = backendComboBox.currentText
+      self.backendToUse = SegmentationModel.ModelSource(backendComboBox.currentText)
     backendComboBox.currentIndexChanged.connect(backendChanged)
     backendLayout = qt.QHBoxLayout()
     backendLayout.addWidget(backendComboBox)
-    self.backendToUse = backendComboBox.currentText
+    self.backendToUse = SegmentationModel.ModelSource(backendComboBox.currentText)
     advancedLayout.addRow("Backend model:", backendLayout)
     segmentSelectedButton = qt.QPushButton("Segment selected xray")
     segmentSelectedButton.clicked.connect(self.onSegmentSelectedClicked)

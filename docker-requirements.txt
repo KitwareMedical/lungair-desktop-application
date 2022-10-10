@@ -2,7 +2,7 @@ colorama>=0.4.1
 itk
 matplotlib
 monai-deploy-app-sdk
-monai[skimage,tqdm,pillow,ignite,gdown,nibabel,transformers]
+monai[skimage,tqdm,pillow,transformers]
 networkx>=2.4
 numpy>=1.21.2,<1.23.0
 pandas

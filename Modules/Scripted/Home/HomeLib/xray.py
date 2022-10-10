@@ -202,7 +202,7 @@ class Xray:
       return
 
     # If the seg_model is the wrong type, replace it
-    if self.seg_model['model'].model_source != self.seg_model['model'].ModelSource[backend_to_use]:
+    if self.seg_model['model'].model_source != backend_to_use:
       from HomeLib.segmentation_model import SegmentationModel
       self.seg_model['model'] = SegmentationModel(self.seg_model['model_path'], backend_to_use)
     # Use the seg_model
