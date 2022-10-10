@@ -21,9 +21,9 @@ class SegmentationModel:
       return '<%s.%s>' % (self.__class__.__name__, self.name)
 
   class ModelSource(NoValue):
-      TORCHSCRIPT_ONLY = 'TorchScript only'
-      LOCAL_DEPLOY = 'MONAI Deploy via command line'
-      DOCKER_DEPLOY = 'MONAI Deploy via docker image'
+      LOCAL_WEIGHTS = 'Locally saved model weights, without MONAI deploy'
+      LOCAL_DEPLOY = 'MONAI Deploy with locally saved model weights'
+      DOCKER_DEPLOY = 'MONAI Deploy with docker image'
 
   def __init__(self, load_pth_path, backend_to_use):
     """
@@ -37,7 +37,7 @@ class SegmentationModel:
     # For save_zip_path, remove trailing .pth if present; append .zip
     self.save_zip_path = re.sub(r"\.pth$", "", self.load_pth_path) + ".zip"
 
-    if self.model_source == self.ModelSource.TORCHSCRIPT_ONLY:
+    if self.model_source == self.ModelSource.LOCAL_WEIGHTS:
       model_dict = torch.load(self.load_pth_path, map_location=torch.device('cpu'))
 
       self.seg_net = model_dict['model']
@@ -91,7 +91,7 @@ class SegmentationModel:
     if len(img.shape) != 2:
       raise ValueError("img must be a 2D array")
 
-    if self.model_source == self.ModelSource.TORCHSCRIPT_ONLY:
+    if self.model_source == self.ModelSource.LOCAL_WEIGHTS:
       self.seg_net.eval()
       img_input = self.transform(img)
       seg_net_output = self.seg_net(img_input.unsqueeze(0))[0]

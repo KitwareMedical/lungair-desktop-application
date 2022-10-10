@@ -117,7 +117,7 @@ class HomeWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     add_install_button("matplotlib", dependency_installer.check_and_install_matplotlib)
     backendComboBox = qt.QComboBox()
     backendComboBox.addItems([
-      SegmentationModel.ModelSource.TORCHSCRIPT_ONLY.value,
+      SegmentationModel.ModelSource.LOCAL_WEIGHTS.value,
       SegmentationModel.ModelSource.LOCAL_DEPLOY.value,
       SegmentationModel.ModelSource.DOCKER_DEPLOY.value,
     ])
