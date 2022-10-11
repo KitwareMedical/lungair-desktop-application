@@ -13,6 +13,7 @@ set(MODULE_PYTHON_SCRIPTS
   ${MODULE_LIB}/eicu.py
   ${MODULE_LIB}/constants.py
   ${MODULE_LIB}/plots.py
+  ${MODULE_LIB}/deploy_app.py
   )
 
 set(MODULE_PYTHON_RESOURCES
@@ -22,6 +23,7 @@ set(MODULE_PYTHON_RESOURCES
   Resources/Home.qss
   Resources/lungair_layout.xml
   Resources/PyTorchModels/LungSegmentation/model0018.pth
+  Resources/PyTorchModels/LungSegmentation/model0018.zip
   Resources/Schema/eICU/patient.txt
   Resources/Schema/eICU/respiratoryCareSchema.txt
   Resources/Schema/eICU/respiratoryCharting.txt

@@ -41,6 +41,15 @@ class HomeWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
 
   def setup(self):
+    try:
+      from HomeLib.segmentation_model import SegmentationModel
+    except Exception as e:
+      # We cannot use slicer.util.errorDisplay here because there is no main window (it will only log an error and not raise a popup).
+      qt.QMessageBox.critical(slicer.util.mainWindow(), "Error importing segmentation model",
+        "Error importing segmentation model. If python dependencies are not installed, install them and restart the application. \nDetails: "+str(e)
+      )
+      return False
+
     ScriptedLoadableModuleWidget.setup(self)
 
     # (Previously we were loading widget from .ui file; keep this commented out here temporarily)
@@ -106,6 +115,19 @@ class HomeWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     add_install_button("ITK-python", dependency_installer.check_and_install_itk)
     add_install_button("pandas", dependency_installer.check_and_install_pandas)
     add_install_button("matplotlib", dependency_installer.check_and_install_matplotlib)
+    backendComboBox = qt.QComboBox()
+    backendComboBox.addItems([
+      SegmentationModel.ModelSource.LOCAL_WEIGHTS.value,
+      SegmentationModel.ModelSource.LOCAL_DEPLOY.value,
+      SegmentationModel.ModelSource.DOCKER_DEPLOY.value,
+    ])
+    def backendChanged(index):
+      self.backendToUse = SegmentationModel.ModelSource(backendComboBox.currentText)
+    backendComboBox.currentIndexChanged.connect(backendChanged)
+    backendLayout = qt.QHBoxLayout()
+    backendLayout.addWidget(backendComboBox)
+    self.backendToUse = SegmentationModel.ModelSource(backendComboBox.currentText)
+    advancedLayout.addRow("Backend model:", backendLayout)
     segmentSelectedButton = qt.QPushButton("Segment selected xray")
     segmentSelectedButton.clicked.connect(self.onSegmentSelectedClicked)
     advancedLayout.addRow(segmentSelectedButton)
@@ -128,6 +150,7 @@ class HomeWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     self.logic.setup(
       layout_file_path = self.resourcePath("lungair_layout.xml"),
       model_path = self.resourcePath("PyTorchModels/LungSegmentation/model0018.pth"),
+      backend_to_use = self.backendToUse,
     )
 
     # Apply style
@@ -168,7 +191,7 @@ class HomeWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     print("text change placeholder:", text)
 
   def onSegmentSelectedClicked(self):
-    self.logic.segmentSelected()
+    self.logic.segmentSelected(self.backendToUse)
 
 
   def hideSlicerUI(self):
@@ -354,7 +377,7 @@ class HomeLogic(ScriptedLoadableModuleLogic):
       slicer.util.exit(slicer.util.EXIT_FAILURE)
     qt.QTimer.singleShot(0, _exitApplication)
 
-  def setup(self, layout_file_path, model_path):
+  def setup(self, layout_file_path, model_path, backend_to_use):
 
     # --------------
     # Set up layout
@@ -454,7 +477,7 @@ class HomeLogic(ScriptedLoadableModuleLogic):
         "Error importing segmentation model. If python dependencies are not installed, install them and restart the application. \nDetails: "+str(e)
       )
       return False
-    self.seg_model = SegmentationModel(model_path)
+    self.seg_model = dict(model_path=model_path, model=SegmentationModel(model_path, backend_to_use))
 
     # ------------------------
     # Check for eicu dependencies
@@ -489,8 +512,8 @@ class HomeLogic(ScriptedLoadableModuleLogic):
   def selectXrayByName(self, name : str):
     self.xray_collection.select(name)
 
-  def segmentSelected(self):
-    self.xray_collection.segment_selected()
+  def segmentSelected(self, backend_to_use):
+    self.xray_collection.segment_selected(backend_to_use)
 
   def loadEICUFromDirectory(self, dir_path : str, schema_dir : str):
     """ As a placeholder to get some EHR data to play with, we use the eICU dataset.
