@@ -226,7 +226,7 @@ class Xray:
     # 4)  RAS coordinate system, the system slicer is ultimately using
 
     # The seg_node in a sense "starts" its life the coordinate system (2').
-    # This is becuase segments are represented as vtkOrientedImageData, with their orientation realizing the (2)->(2') transform.
+    # This is because segments are represented as vtkOrientedImageData, with their orientation realizing the (2)->(2') transform.
 
     # Coordinate transformation (2') to (3'), for now. It will change below.
     self.model_to_ras_transform_node = create_coronal_plane_transform_node_from_2x2(model_to_image_matrix, "LungAIR model to image transform: "+self.name)
@@ -413,7 +413,7 @@ class XrayCollection(dict):
     for xray in self.values():
       xray.delete_nodes()
 
-    # The last set of xrays that was loaded may have added subjects to the subject hierarchy that are no longer neeeded
+    # The last set of xrays that was loaded may have added subjects to the subject hierarchy that are no longer needed
     # This is not an elegant approach, because it deletes unused subjects indiscriminantly, without regard to whether they were
     # added in relation to this particular xray collection. IF we later use the subject-study system elsewhere in the LungAIR application,
     # then we would have to change this approach.
