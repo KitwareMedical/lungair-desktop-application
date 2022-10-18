@@ -170,7 +170,7 @@ class HomeWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     half_height = slicer.util.mainWindow().centralWidget().size.height()//2
     centralWidgetLayoutFrame = slicer.util.mainWindow().centralWidget().findChild(qt.QFrame, "CentralWidgetLayoutFrame")
     splitter = centralWidgetLayoutFrame.findChild(qt.QSplitter)
-    # For the splitter movement to work, we need to first let other events finish processing, hence the timer with timout of 0
+    # For the splitter movement to work, we need to first let other events finish processing, hence the timer with timeout of 0
     qt.QTimer.singleShot(0, lambda : splitter.handle(1).moveSplitter(half_height))
 
   def onLoadPatientClicked(self):

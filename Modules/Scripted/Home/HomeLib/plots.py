@@ -73,7 +73,7 @@ class SlicerPlotData:
       raise ValueError(f"data was expected to be a numpy array of shape (N,2), got {tuple(data.shape)}")
 
     # Here we avoid changing plots while they are associated to a plot view.
-    # This is to supress an error that otherwise shows up
+    # This is to suppress an error that otherwise shows up
     # (see e.g. https://github.com/KitwareMedical/lungair-desktop-application/issues/27).
     self.plot_view.setMRMLPlotViewNode(self.empty_plot_view_node)
 

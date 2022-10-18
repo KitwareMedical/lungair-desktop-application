@@ -67,7 +67,7 @@ class Eicu:
     return self.fio2_df
 
   def get_random_unitstay(self) -> np.int32:
-    """Get a random patient unit stay ID with some contraints (e.g. there is at least one FiO2 entry for the stay).
+    """Get a random patient unit stay ID with some constraints (e.g. there is at least one FiO2 entry for the stay).
     This function is meant to help with LungAIR application development in the absence of real NICU patient data,
     by providing a random unit stay ID that we can pretend is the "loaded patient stay" in the application.
     """
