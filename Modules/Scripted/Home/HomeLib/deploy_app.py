@@ -36,12 +36,7 @@ class LoadPILOperator(mdc.Operator):
     def image_size(self):
         return 256
 
-    def compute(
-        self,
-        op_input: mdc.InputContext,
-        op_output: mdc.OutputContext,
-        context: mdc.ExecutionContext,
-    ):
+    def compute(self, op_input: mdc.InputContext, op_output: mdc.OutputContext, context: mdc.ExecutionContext):
         input_path = op_input.get().path
         if input_path.is_dir():
             input_path = next(input_path.glob("*.*"))  # take the first file
@@ -74,20 +69,11 @@ class PreprocessOperator(mdc.Operator):
         # Note that we removed the last: step mt.ToTensor()
         cast_to_type = mt.CastToType(dtype=np.float32)
         add_channel = mt.AddChannel()
-        resize = mt.Resize(
-            spatial_size=(self.image_size, self.image_size),
-            mode="bilinear",
-            align_corners=False,
-        )
+        resize = mt.Resize(spatial_size=(self.image_size, self.image_size), mode="bilinear", align_corners=False)
 
         return mt.Compose([cast_to_type, add_channel, resize])
 
-    def compute(
-        self,
-        op_input: mdc.InputContext,
-        op_output: mdc.OutputContext,
-        context: mdc.ExecutionContext,
-    ):
+    def compute(self, op_input: mdc.InputContext, op_output: mdc.OutputContext, context: mdc.ExecutionContext):
         img_input = op_input.get().asnumpy()
         img_preprocessed = self.preprocess(img_input)
         img_output = mdc.Image(img_preprocessed)
@@ -102,12 +88,7 @@ class SegmentationOperator(mdc.Operator):
     Segment image, from numpy array input to numpy array output.
     """
 
-    def compute(
-        self,
-        op_input: mdc.InputContext,
-        op_output: mdc.OutputContext,
-        context: mdc.ExecutionContext,
-    ):
+    def compute(self, op_input: mdc.InputContext, op_output: mdc.OutputContext, context: mdc.ExecutionContext):
         img_input = op_input.get().asnumpy()  # shape=(1, 256, 256), dtype=float32
         if len(img_input.shape) != 3 or img_input.shape[0] != 1:
             raise ValueError("img_input must be a 2D array")
@@ -145,12 +126,7 @@ class PostprocessOperator(mdc.Operator):
         # Instead use SegmentationPostProcessing once it works
         return mt.Compose([])
 
-    def compute(
-        self,
-        op_input: mdc.InputContext,
-        op_output: mdc.OutputContext,
-        context: mdc.ExecutionContext,
-    ):
+    def compute(self, op_input: mdc.InputContext, op_output: mdc.OutputContext, context: mdc.ExecutionContext):
         if False:
             # Use SegmentationPostProcessing once it works
             img_input = op_input.get("seg_mask").asnumpy()
@@ -170,12 +146,7 @@ class SavePILOperator(mdc.Operator):
     Save image to the given output (mdc.DataPath) from numpy array input (mdc.Image).
     """
 
-    def compute(
-        self,
-        op_input: mdc.InputContext,
-        op_output: mdc.OutputContext,
-        context: mdc.ExecutionContext,
-    ):
+    def compute(self, op_input: mdc.InputContext, op_output: mdc.OutputContext, context: mdc.ExecutionContext):
         output_directory = op_output.get("output_directory").path
         os.makedirs(output_directory, exist_ok=True)
         img_input = op_input.get("seg_processed").asnumpy()
@@ -206,9 +177,7 @@ class App(mdc.Application):
         self.add_flow(segmentation_op, postprocess_op, {"seg_mask": "seg_mask"})
         self.add_flow(postprocess_op, save_pil_op, {"seg_processed": "seg_processed"})
 
-        self.add_flow(
-            load_pil_op, save_pil_op, {"model_to_img_matrix": "model_to_img_matrix"}
-        )
+        self.add_flow(load_pil_op, save_pil_op, {"model_to_img_matrix": "model_to_img_matrix"})
 
 
 if __name__ == "__main__":
