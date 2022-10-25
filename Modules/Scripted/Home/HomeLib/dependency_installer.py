@@ -1,4 +1,7 @@
-import slicer, qt, importlib, functools
+import slicer
+import qt
+import importlib
+import functools
 
 
 class BusyCursor:

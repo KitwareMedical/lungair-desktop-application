@@ -49,7 +49,7 @@ class SegmentationPostProcessing:
         # Construct a list of pairs (label, size) consisting of the label assigned to each connected
         # component followed by the size of that component. The label 0 is excluded because it
         # stands for background, and the itk connected components filter should preserve that label.
-        label_size_pairs = [(l, (seg_connected == l).sum()) for l in np.unique(seg_connected) if l != 0]
+        label_size_pairs = [(ll, (seg_connected == ll).sum()) for ll in np.unique(seg_connected) if ll != 0]
 
         # sort by region size, descending
         label_size_pairs = sorted(label_size_pairs, key=lambda pair: pair[1], reverse=True)
@@ -72,7 +72,7 @@ class SegmentationPostProcessing:
         label_map = itk.LabelImageToShapeLabelMapFilter(seg_connected.astype(itk.UC))
 
         # Get the centroid of each of the largest two regions
-        centroids = np.array([label_map.GetLabelObject(l).GetCentroid() for l in largest_two_labels])
+        centroids = np.array([label_map.GetLabelObject(ll).GetCentroid() for ll in largest_two_labels])
 
         # This must be true because we raise exception when largest_two_labels is too short of a list,
         # and because the input image was a 2D image.

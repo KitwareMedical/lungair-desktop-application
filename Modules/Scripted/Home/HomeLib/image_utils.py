@@ -1,5 +1,6 @@
 import numpy as np
-import vtk, slicer
+import vtk
+import slicer
 from vtk.util.numpy_support import get_vtk_array_type, get_numpy_array_type
 
 

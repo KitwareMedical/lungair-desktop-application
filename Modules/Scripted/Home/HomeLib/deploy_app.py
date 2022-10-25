@@ -99,7 +99,7 @@ class SegmentationOperator(mdc.Operator):
         img_on_device = img_tensor.to(device)
 
         model = context.models.get()  # get a TorchScriptModel object
-        tmp = model.eval()  # Needed?
+        model.eval()  # Needed?
         with torch.no_grad():
             seg_net_output = model(img_on_device.unsqueeze(0))[0]
 

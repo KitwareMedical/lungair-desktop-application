@@ -1,6 +1,9 @@
 from genericpath import exists
 import os
-import vtk, qt, ctk, slicer
+import vtk
+import qt
+import ctk
+import slicer
 from slicer.ScriptedLoadableModule import *
 import logging
 from slicer.util import VTKObservationMixin
@@ -194,8 +197,8 @@ class HomeWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     def onLoadPatientClicked(self):
         self.logic.loadXraysFromDirectory(self.xrayDirectoryPathLineEdit.currentPath)
         self.xrayListWidget.clear()
-        for xray in self.logic.xray_collection.values():
-            self.xrayListWidget.addItem(xray.name)
+        for my_xray in self.logic.xray_collection.values():
+            self.xrayListWidget.addItem(my_xray.name)
 
         self.logic.loadEICUFromDirectory(self.csvDirectoryPathLineEdit.currentPath, self.resourcePath("Schema/eICU"))
 
@@ -218,7 +221,7 @@ class HomeWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         slicer.util.setModulePanelTitleVisible(False)
         slicer.util.setPythonConsoleVisible(False)
         slicer.util.setToolbarsVisible(True)
-        mainToolBar = slicer.util.findChild(slicer.util.mainWindow(), "MainToolBar")
+        slicer.util.findChild(slicer.util.mainWindow(), "MainToolBar")  # mainToolBar
         keepToolbars = [
             # slicer.util.findChild(slicer.util.mainWindow(), 'MainToolBar'),
             # slicer.util.findChild(slicer.util.mainWindow(), 'ViewToolBar'),
@@ -519,7 +522,7 @@ class HomeLogic(ScriptedLoadableModuleLogic):
         # Adjust python console colors
         # ------------------------
 
-        slicer.util.mainWindow().pythonConsole().setStyleSheet(f"background-color: #FFFFFF")
+        slicer.util.mainWindow().pythonConsole().setStyleSheet("background-color: #FFFFFF")
 
         return True
 
@@ -604,7 +607,7 @@ class HomeTest(ScriptedLoadableModuleTest):
         # first, get some data
         #
 
-        logic = HomeLogic()
+        HomeLogic()
         self.delayDisplay("Test passed!")
 
 
