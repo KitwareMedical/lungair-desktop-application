@@ -1,4 +1,6 @@
-import slicer, qt, vtk
+import slicer
+import qt
+import vtk
 from .constants import *
 
 
