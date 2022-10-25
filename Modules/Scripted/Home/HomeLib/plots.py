@@ -9,6 +9,7 @@ PLOT_TYPES = {
     "scatterbar": slicer.vtkMRMLPlotSeriesNode.PlotTypeScatterBar,
 }
 
+
 def createPlotView():
     """Create and return a qMRMLPlotView widget.
     It is associated to the main scene, and it also gets a button for fitToContent."""
@@ -50,7 +51,6 @@ class SlicerPlotData:
         self.plot_view_node = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLPlotViewNode", name + "PlotView")
         self.plot_view.setMRMLPlotViewNode(self.plot_view_node)
         self.plot_nodes = {}  # chart, table, and series; see the parameter "nodes" in the doc of slicer.util.plot
-
 
     def set_plot_data(self, data, x_axis_label=None, y_axis_label=None, title=None, legend_label=None, plot_type="line", labels=None):
         """

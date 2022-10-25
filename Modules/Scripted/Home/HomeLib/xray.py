@@ -6,6 +6,7 @@ import slicer
 import vtk
 from .image_utils import create_segmentation_node_from_numpy_array
 
+
 def create_linear_transform_node_from_matrix(matrix, node_name):
     """Given a 3D affine transform as a 4x4 matrix, create a vtkMRMLTransformNode in the scene return it."""
     vtk_matrix = slicer.util.vtkMatrixFromArray(matrix)
@@ -13,6 +14,7 @@ def create_linear_transform_node_from_matrix(matrix, node_name):
     transform_node.SetName(node_name)
     transform_node.SetAndObserveMatrixTransformToParent(vtk_matrix)
     return transform_node
+
 
 def create_axial_to_coronal_transform_node():
     axial_to_coronal_np_matrix = np.array([
@@ -23,6 +25,7 @@ def create_axial_to_coronal_transform_node():
     ])
     return create_linear_transform_node_from_matrix(axial_to_coronal_np_matrix, "axial slice to coronal slice")
 
+
 def create_coronal_plane_transform_node_from_2x2(matrix, node_name):
     """Given a 2D linear transform as a 2x2 matrix, create a transform node that carries out the transform within each coronal slice
     The vtkMRMLTransformNode is added to the scene and returned."""
@@ -31,6 +34,7 @@ def create_coronal_plane_transform_node_from_2x2(matrix, node_name):
     affine_transform = np.identity(4)
     affine_transform[np.ix_([2, 0], [2, 0])] = matrix
     return create_linear_transform_node_from_matrix(affine_transform, node_name)
+
 
 def load_dicom_dir(dicomDataDir, pluginName, validate_dict=None, validate_mode=None, quiet=True):
     """Load from a DICOM directory and return a list of the loaded nodes.
@@ -50,6 +54,7 @@ def load_dicom_dir(dicomDataDir, pluginName, validate_dict=None, validate_mode=N
         raise ValueError("Please specify a validate_dict.")
 
     loadedNodes = []
+
     @vtk.calldata_type(vtk.VTK_OBJECT)
     def onNodeAdded(caller, event, calldata):
         node = calldata
@@ -106,12 +111,14 @@ def load_dicom_dir(dicomDataDir, pluginName, validate_dict=None, validate_mode=N
     slicer.mrmlScene.RemoveObserver(sceneObserverTag)
     return loadedNodes
 
+
 # The DICOM validation function that we will use for NICU chest x-rays
 validate_nicu_cxr = {
     "0018,5101": ["AP", "PA"],  # view position
     "0008,0060": ["RG", "DX", "CR"],  # modality
     "0018,0015": ["CHEST"],  # body part examined
 }
+
 
 def load_xrays(path: str, seg_model, image_format=None):
     """
@@ -144,7 +151,6 @@ def load_xrays(path: str, seg_model, image_format=None):
         return loaded_xrays
     else:
         raise ValueError("Unrecognized image_format.")
-
 
 
 class Xray:
@@ -360,7 +366,6 @@ class XrayDisplayManager:
         self.xray_view_node = self.xray_slice_view.mrmlSliceNode()
         self.xray_features_view_node = self.xray_features_slice_view.mrmlSliceNode()
 
-
     def show_xray(self, xray: Xray):
         """Show the given Xray image in the xray display views"""
         self.xray_composite_node.SetBackgroundVolumeID(xray.volume_node.GetID())
@@ -390,6 +395,7 @@ def shItem_has_volume_node_descendant(item_id):
             return True
     return False
 
+
 def prune_unused_subjects():
     """Delete any unused top-level subjects from the subject hierarchy.
     Here "unused" means subjects that contain no volume nodes under them."""
@@ -400,6 +406,7 @@ def prune_unused_subjects():
         top_level_child = top_level_children.GetId(i)
         if shNode.GetItemLevel(top_level_child) == "Patient" and not shItem_has_volume_node_descendant(top_level_child):
             shNode.RemoveItem(top_level_child)
+
 
 class XrayCollection(dict):
     """A mapping from xray names to xray objects, with some useful xray-specific functionality."""

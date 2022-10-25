@@ -10,6 +10,7 @@ from HomeLib.plots import *
 import HomeLib.xray as xray
 from HomeLib.constants import *
 
+
 class Home(ScriptedLoadableModule):
     """Uses ScriptedLoadableModule base class, available at:
     https://github.com/Slicer/Slicer/blob/master/Base/Python/slicer/ScriptedLoadableModule.py
@@ -38,7 +39,6 @@ class HomeWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     def __init__(self, parent):
         ScriptedLoadableModuleWidget.__init__(self, parent)
         VTKObservationMixin.__init__(self)
-
 
     def setup(self):
         try:
@@ -110,6 +110,7 @@ class HomeWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         featureComboBox = qt.QComboBox()
         featureComboBox.currentTextChanged.connect(self.onFeatureComboBoxTextChanged)
         advancedLayout.addRow("Feature extraction\nstep to display", featureComboBox)
+
         def add_install_button(package_name: str, install_function: str):
             installButton = qt.QPushButton(f"Check for {package_name} install")
             installButton.clicked.connect(lambda unused_arg: install_function())
@@ -124,6 +125,7 @@ class HomeWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
             SegmentationModel.ModelSource.LOCAL_DEPLOY.value,
             SegmentationModel.ModelSource.DOCKER_DEPLOY.value,
         ])
+
         def backendChanged(index):
             self.backendToUse = SegmentationModel.ModelSource(backendComboBox.currentText)
         backendComboBox.currentIndexChanged.connect(backendChanged)
@@ -141,7 +143,6 @@ class HomeWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.xrayDirectoryPathLineEdit = xrayDirectoryPathLineEdit
         self.csvDirectoryPathLineEdit = csvDirectoryPathLineEdit
         self.xrayListWidget = xrayListWidget
-
 
         # Add custom toolbar with a settings button and then hide various Slicer UI elements
         self.modifyWindowUI()
@@ -196,7 +197,6 @@ class HomeWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     def onSegmentSelectedClicked(self):
         self.logic.segmentSelected(self.backendToUse)
 
-
     def hideSlicerUI(self):
         slicer.util.setDataProbeVisible(False)
         slicer.util.setMenuBarsVisible(False)
@@ -220,8 +220,6 @@ class HomeWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         slicer.util.setPythonConsoleVisible(True)
         slicer.util.setToolbarsVisible(True)
 
-
-
     def modifyWindowUI(self):
         slicer.util.setModuleHelpSectionVisible(False)
 
@@ -243,7 +241,6 @@ class HomeWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.settingsAction.triggered.connect(self.raiseSettings)
         self.hideSlicerUI()
 
-
     def toggleStyle(self, visible):
         if visible:
             self.applyApplicationStyle()
@@ -262,7 +259,6 @@ class HomeWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     def applyApplicationStyle(self):
         # Style
         self.applyStyle([slicer.app], 'Home.qss')
-
 
     def applyStyle(self, widgets, styleSheetName):
         stylesheetfile = self.resourcePath(styleSheetName)
@@ -290,7 +286,6 @@ def tableNodeFromDataFrame(df, editable=False):
 
     tableNode.SetLocked(not editable)
     return tableNode
-
 
 
 class ClinicalParametersTabWidget(qt.QTabWidget):  # TODO move this class to an appropriate place
@@ -354,6 +349,7 @@ class ClinicalParametersTabWidget(qt.QTabWidget):  # TODO move this class to an 
             plot_type="scatterbar",
             labels=[f"{start} to {end}" for start, end in bins]
         )
+
 
 class HomeLogic(ScriptedLoadableModuleLogic):
     """This class should implement all the actual
@@ -453,7 +449,6 @@ class HomeLogic(ScriptedLoadableModuleLogic):
         self.clinical_parameters_widget.layout().addWidget(self.clinical_parameters_tabWidget)
         self.risk_analysis_widget.layout().addWidget(self.risk_analysis_tabWidget)
 
-
         # ------------------------
         # Set up workspace directory
         # ------------------------
@@ -505,7 +500,6 @@ class HomeLogic(ScriptedLoadableModuleLogic):
 
         slicer.util.mainWindow().pythonConsole().setStyleSheet(f"background-color: #FFFFFF")
 
-
         return True
 
     def loadXraysFromDirectory(self, dir_path: str):
@@ -550,6 +544,7 @@ class HomeLogic(ScriptedLoadableModuleLogic):
         self.clinical_parameters_tabWidget.set_patient_df(patient_df)
         self.clinical_parameters_tabWidget.set_fio2_line_plot(fio2_data.to_numpy())
         self.clinical_parameters_tabWidget.set_fio2_bar_plot(bins, total_times)
+
 
 class HomeTest(ScriptedLoadableModuleTest):
     """

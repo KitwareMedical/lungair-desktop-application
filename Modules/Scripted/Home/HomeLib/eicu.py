@@ -9,6 +9,7 @@ DTYPE_STRING_MAPPING = {  # Map schema dtype string to pandas dtype string
     'numeric': 'float32'
 }
 
+
 def get_dtype_dict(pasted_table_path):
     """Table schemas can be copied into text files from https://mit-lcp.github.io/eicu-schema-spy/index.html"""
     dtype_dict = {}
@@ -19,6 +20,7 @@ def get_dtype_dict(pasted_table_path):
                 raise KeyError(f"Please add an entry for {dtype_string} to DTYPE_STRING_MAPPING")
             dtype_dict[column_name] = DTYPE_STRING_MAPPING[dtype_string]
     return dtype_dict
+
 
 class Eicu:
 

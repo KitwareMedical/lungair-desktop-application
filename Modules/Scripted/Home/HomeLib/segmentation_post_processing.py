@@ -4,6 +4,7 @@ import numpy as np
 import torch
 from collections import OrderedDict
 
+
 class SegmentationPostProcessing():
     """
     Post-processing callable that remembers some intermediate steps.
