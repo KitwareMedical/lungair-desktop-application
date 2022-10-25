@@ -16,26 +16,6 @@ format = pylint
 exclude = .git,__pycache__
 
 ignore = \
-  # whitespace after '('
-  E201, \
-  # whitespace before ')'
-  E202, \
-  # whitespace before ','
-  E203, \
-  # multiple spaces after operator
-  E222, \
-  # missing whitespace around operator
-  E225, \
-  # missing whitespace around arithmetic operator
-  E226, \
-  # missing whitespace after ','
-  E231, \
-  # multiple spaces after
-  E241, \
-  # unexpected spaces around keyword / parameter equals
-  E251, \
-  # at least two spaces before inline comment
-  E261, \
   # expected 2 blank lines, found 1
   E302, \
   # too many blank lines
