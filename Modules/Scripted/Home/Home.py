@@ -261,7 +261,7 @@ class HomeWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
     def applyStyle(self, widgets, styleSheetName):
         stylesheetfile = self.resourcePath(styleSheetName)
-        with open(stylesheetfile, "r") as fh:
+        with open(stylesheetfile) as fh:
             style = fh.read()
             for widget in widgets:
                 widget.styleSheet = style
@@ -381,7 +381,7 @@ class HomeLogic(ScriptedLoadableModuleLogic):
         # Set up layout
         # --------------
 
-        with open(layout_file_path, "r") as fh:
+        with open(layout_file_path) as fh:
             layout_text = fh.read()
 
         # built-in layout IDs are all below 100, so we can choose any large random number for this one
@@ -588,6 +588,6 @@ class HomeTest(ScriptedLoadableModuleTest):
 # Class for avoiding python error that is caused by the method SegmentEditor::setup
 # http://issues.slicer.org/view.php?id=3871
 #
-class HomeFileWriter(object):
+class HomeFileWriter:
     def __init__(self, parent):
         pass
