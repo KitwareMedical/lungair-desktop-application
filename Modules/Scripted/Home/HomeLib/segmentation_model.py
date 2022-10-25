@@ -18,7 +18,7 @@ from .segmentation_post_processing import SegmentationPostProcessing
 class SegmentationModel:
     class NoValue(enum.Enum):
         def __repr__(self):
-            return '<%s.%s>' % (self.__class__.__name__, self.name)
+            return f'<{self.__class__.__name__}.{self.name}>'
 
     class ModelSource(NoValue):
         LOCAL_WEIGHTS = 'Locally saved model weights, without MONAI deploy'
