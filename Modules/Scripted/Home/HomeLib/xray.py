@@ -16,10 +16,10 @@ def create_linear_transform_node_from_matrix(matrix, node_name):
 
 def create_axial_to_coronal_transform_node():
     axial_to_coronal_np_matrix = np.array([
-        [1., 0.,  0., 0.],
+        [1., 0., 0., 0.],
         [0., 0., -1., 0.],
-        [0., 1.,  0., 0.],
-        [0., 0.,  0., 1.]
+        [0., 1., 0., 0.],
+        [0., 0., 0., 1.]
     ])
     return create_linear_transform_node_from_matrix(axial_to_coronal_np_matrix, "axial slice to coronal slice")
 
@@ -29,10 +29,10 @@ def create_coronal_plane_transform_node_from_2x2(matrix, node_name):
 
     # The [2,0] is a the "S,R" coordinates in "R,A,S". The np.ix_([2,0],[2,0]) allows us to select the S,R submatrix.
     affine_transform = np.identity(4)
-    affine_transform[np.ix_([2,0],[2,0])] = matrix
+    affine_transform[np.ix_([2, 0], [2, 0])] = matrix
     return create_linear_transform_node_from_matrix(affine_transform, node_name)
 
-def load_dicom_dir(dicomDataDir, pluginName, validate_dict = None, validate_mode = None, quiet = True):
+def load_dicom_dir(dicomDataDir, pluginName, validate_dict=None, validate_mode=None, quiet=True):
     """Load from a DICOM directory and return a list of the loaded nodes.
 
     Args:
@@ -72,15 +72,15 @@ def load_dicom_dir(dicomDataDir, pluginName, validate_dict = None, validate_mode
                 series_file_list = db.filesForSeries(seriesUID)
                 if validate_mode is None:
                     series_file_list_filtered = series_file_list
-                elif validate_mode=="skip" or validate_mode=="error":
+                elif validate_mode == "skip" or validate_mode == "error":
                     series_file_list_filtered = []
                     for file_path in series_file_list:
-                        dicom_values = {dicom_tag : db.fileValue(file_path,dicom_tag) for dicom_tag, allowed_vals in validate_dict.items()}
+                        dicom_values = {dicom_tag: db.fileValue(file_path, dicom_tag) for dicom_tag, allowed_vals in validate_dict.items()}
                         validation_passed = all(dicom_values[dicom_tag] in validate_dict[dicom_tag] for dicom_tag in validate_dict.keys())
                         if validation_passed:
                             series_file_list_filtered.append(file_path)
                         else:
-                            if validate_mode=="error":
+                            if validate_mode == "error":
                                 raise Exception(
                                     f"DICOM file {file_path} has failed validation due to the following: " + ", ".join(
                                         f"{tag} is {dicom_values[tag]}" for tag in validate_dict.keys()
@@ -91,14 +91,14 @@ def load_dicom_dir(dicomDataDir, pluginName, validate_dict = None, validate_mode
                                 print(f"Skipping {file_path} because it failed validation.")
                 else:
                     raise ValueError("Invalid validate_mode.")
-                if len(series_file_list_filtered)>0:
+                if len(series_file_list_filtered) > 0:
                     fileLists.append(series_file_list)
             loadables = plugin.examineForImport(fileLists)
             for loadable in loadables:
                 plugin.load(loadable)
 
             if not quiet:
-                print("Patient with UID",patientUIDstr)
+                print("Patient with UID", patientUIDstr)
                 print("  Studies:", studies)
                 print("  Series:", series)
                 print("  fileLists:", fileLists)
@@ -108,12 +108,12 @@ def load_dicom_dir(dicomDataDir, pluginName, validate_dict = None, validate_mode
 
 # The DICOM validation function that we will use for NICU chest x-rays
 validate_nicu_cxr = {
-    "0018,5101" : ["AP","PA"], # view position
-    "0008,0060" : ["RG","DX","CR"], # modality
-    "0018,0015" : ["CHEST"], # body part examined
+    "0018,5101": ["AP", "PA"],  # view position
+    "0008,0060": ["RG", "DX", "CR"],  # modality
+    "0018,0015": ["CHEST"],  # body part examined
 }
 
-def load_xrays(path:str, seg_model, image_format=None):
+def load_xrays(path: str, seg_model, image_format=None):
     """
     Load xrays from a given path, returning a list of Xray objects.
     This handles the creation of the needed MRML nodes and their alignment to the coordinate system.
@@ -130,17 +130,17 @@ def load_xrays(path:str, seg_model, image_format=None):
             image_format = "dicom"
 
     name = os.path.basename(path)
-    if image_format=="png":
-        volume_node = slicer.util.loadVolume(path, {"singleFile":True, "name":"LungAIR CXR: "+name})
+    if image_format == "png":
+        volume_node = slicer.util.loadVolume(path, {"singleFile": True, "name": "LungAIR CXR: " + name})
         return [Xray(name, volume_node, seg_model)]
-    elif image_format=="dicom":
+    elif image_format == "dicom":
         loaded_nodes = load_dicom_dir(path, "DICOMScalarVolumePlugin", validate_dict=validate_nicu_cxr, validate_mode="skip")
         loaded_xrays = []
         for i, node in enumerate(loaded_nodes):
-            if node.GetClassName()!="vtkMRMLScalarVolumeNode":
-                logging.warning("Somehow load_dicom_dir added an unexpected node type; see node ID "+node.GetID())
+            if node.GetClassName() != "vtkMRMLScalarVolumeNode":
+                logging.warning("Somehow load_dicom_dir added an unexpected node type; see node ID " + node.GetID())
             else:
-                loaded_xrays.append(Xray(name+f"_{i}", node, seg_model))
+                loaded_xrays.append(Xray(name + f"_{i}", node, seg_model))
         return loaded_xrays
     else:
         raise ValueError("Unrecognized image_format.")
@@ -155,7 +155,7 @@ class Xray:
 
     axial_to_coronal_transform_node = None
 
-    def __init__(self, name:str, volume_node, seg_model):
+    def __init__(self, name: str, volume_node, seg_model):
         """
         Args:
           name: name to be used in names of other associated objects (e.g. segmentation node)
@@ -187,13 +187,13 @@ class Xray:
     def delete_nodes(self):
         """Delete this xray's associated nodes. This leaves the object in an invalid state and it should no longer be used."""
         slicer.mrmlScene.RemoveNode(self.volume_node)
-        slicer.mrmlScene.RemoveNode(self.seg_node) # Passing None to RemoveNode should do nothing
+        slicer.mrmlScene.RemoveNode(self.seg_node)  # Passing None to RemoveNode should do nothing
         slicer.mrmlScene.RemoveNode(self.model_to_ras_transform_node)
         self.seg_node = None
         self.volume_node = None
         self.model_to_ras_transform_node = None
 
-    def add_segmentation(self, backend_to_use : str):
+    def add_segmentation(self, backend_to_use: str):
         """
         Run segmentation model for this xray if it hasn't already been done.
         Creates an associated slicer segmentation node.
@@ -210,8 +210,8 @@ class Xray:
 
         self.seg_node = create_segmentation_node_from_numpy_array(
             self.seg_mask_tensor.numpy(),
-            {1:"lung field"}, # TODO replace by left and right lung setup once you fix post processing, and update doc above
-            "LungAIR Seg: "+self.name,
+            {1: "lung field"},  # TODO replace by left and right lung setup once you fix post processing, and update doc above
+            "LungAIR Seg: " + self.name,
             self.volume_node
         )
 
@@ -229,7 +229,7 @@ class Xray:
         # This is because segments are represented as vtkOrientedImageData, with their orientation realizing the (2)->(2') transform.
 
         # Coordinate transformation (2') to (3'), for now. It will change below.
-        self.model_to_ras_transform_node = create_coronal_plane_transform_node_from_2x2(model_to_image_matrix, "LungAIR model to image transform: "+self.name)
+        self.model_to_ras_transform_node = create_coronal_plane_transform_node_from_2x2(model_to_image_matrix, "LungAIR model to image transform: " + self.name)
 
         # Coordinate transformation (3) to (4)
         ijkToRas = vtk.vtkMatrix4x4()
@@ -237,8 +237,8 @@ class Xray:
 
         # Coordinate transformation (3') to (3)
         ijkToRasDirInverse = vtk.vtkMatrix4x4()
-        self.volume_node.GetIJKToRASDirectionMatrix(ijkToRasDirInverse) # (3) to (3')
-        ijkToRasDirInverse.Invert()# now (3') to (3)
+        self.volume_node.GetIJKToRASDirectionMatrix(ijkToRasDirInverse)  # (3) to (3')
+        ijkToRasDirInverse.Invert()  # now (3') to (3)
 
         # Coordinate transformation (3') to (4)
         ijkToRasWithoutDir = vtk.vtkMatrix4x4()
@@ -294,46 +294,46 @@ class Xray:
 
             # If the number of components is 3 then it's probably just color channels-- but if not then further investigation is definitely needed.
             if num_scalar_components != 3:
-                raise RuntimeError(f"The underlying vtkImageData of volume node {volume_node.GetName()} has {num_scalar_components} scalar components. "+
+                raise RuntimeError(f"The underlying vtkImageData of volume node {volume_node.GetName()} has {num_scalar_components} scalar components. " +
                                    "We do not know how to interpret this; expected 1 or 3 components.")
 
             # Convert to grayscale
             array = array.mean(axis=3, dtype=dtype)
 
         elif len(array.shape) != 3:
-            raise RuntimeError(f"Getting an array from volume node {volume_node.GetName()} resulted in the shape {list(array.shape)}, "+
+            raise RuntimeError(f"Getting an array from volume node {volume_node.GetName()} resulted in the shape {list(array.shape)}, " +
                                "which has an unexpected number of axes. Expected 3 or 4 axes.")
 
         # Attempt to find which axes of the numpy array correspond to certain patient-coordinate-directions
         array_axis_left = None
         array_axis_inferior = None
-        left_dir = np.array([-1.,0.,0.])
-        inferior_dir = np.array([0.,0.,-1.])
+        left_dir = np.array([-1., 0., 0.])
+        inferior_dir = np.array([0., 0., -1.])
 
-        epsilon = 0.00001 # Tolerance for floating point comparisons
+        epsilon = 0.00001  # Tolerance for floating point comparisons
 
         # Here array_axis is one of the axes of the numpy array and direction_vector is its direction in RAS coordinates
         for array_axis, direction_vector in enumerate((k_dir, j_dir, i_dir)):
-            if ((direction_vector-left_dir)<epsilon).all():
+            if ((direction_vector - left_dir) < epsilon).all():
                 array_axis_left = array_axis
-            elif ((direction_vector-inferior_dir)<epsilon).all():
+            elif ((direction_vector - inferior_dir) < epsilon).all():
                 array_axis_inferior = array_axis
         if array_axis_left is None or array_axis_inferior is None:
-            raise RuntimeError(f"Volume node {volume_node.GetName()} does not seem to be aligned along the expected axes; "+
+            raise RuntimeError(f"Volume node {volume_node.GetName()} does not seem to be aligned along the expected axes; " +
                                "unable to provide a numpy array because we cannot determine the standard axis order.")
 
         # Verify that the left and inferior axes are distinct and that the dimension along the remaining third axis is 1
         assert(all(array_axis in range(3) for array_axis in (array_axis_left, array_axis_inferior)))
         assert(array_axis_left != array_axis_inferior)
         other_axes = [array_axis for array_axis in range(3) if array_axis not in (array_axis_left, array_axis_inferior)]
-        assert(len(other_axes)==1)
+        assert(len(other_axes) == 1)
         array_axis_other = other_axes[0]
 
-        if array.shape[array_axis_other]!=1:
-            raise RuntimeError(f"Volume node {volume_node.GetName()} seems to have more than one slice in a direction besides RIGHT or SUPERIOR; "+
+        if array.shape[array_axis_other] != 1:
+            raise RuntimeError(f"Volume node {volume_node.GetName()} seems to have more than one slice in a direction besides RIGHT or SUPERIOR; " +
                                "unable to provide a 2D numpy array for this.")
 
-        array_2D_oriented = np.transpose(array, axes = (array_axis_other, array_axis_inferior, array_axis_left))[0]
+        array_2D_oriented = np.transpose(array, axes=(array_axis_other, array_axis_inferior, array_axis_left))[0]
         return array_2D_oriented.astype(dtype)
 
 
@@ -361,13 +361,13 @@ class XrayDisplayManager:
         self.xray_features_view_node = self.xray_features_slice_view.mrmlSliceNode()
 
 
-    def show_xray(self, xray:Xray):
+    def show_xray(self, xray: Xray):
         """Show the given Xray image in the xray display views"""
         self.xray_composite_node.SetBackgroundVolumeID(xray.volume_node.GetID())
         self.xray_features_composite_node.SetBackgroundVolumeID(xray.volume_node.GetID())
-        slicer.util.resetSliceViews() # reset views to show full image
+        slicer.util.resetSliceViews()  # reset views to show full image
 
-    def set_xray_segmentation_visibility(self, xray:Xray, visibility:bool):
+    def set_xray_segmentation_visibility(self, xray: Xray, visibility: bool):
         """Show the segmentation of the given in the xray image in the xray features view"""
         if xray.has_seg():
 
@@ -383,7 +383,7 @@ def shItem_has_volume_node_descendant(item_id):
     """Return whether the item with the given subject hierarchy item ID has any volume nodes under its subtree"""
     shNode = slicer.mrmlScene.GetSubjectHierarchyNode()
     children = vtk.vtkIdList()
-    shNode.GetItemChildren(item_id, children, True) # last parameter is "recursive = False"
+    shNode.GetItemChildren(item_id, children, True)  # last parameter is "recursive = False"
     for i in range(children.GetNumberOfIds()):
         node = shNode.GetItemDataNode(children.GetId(i))
         if node is not None and node.IsTypeOf("vtkMRMLVolumeNode"):
@@ -395,7 +395,7 @@ def prune_unused_subjects():
     Here "unused" means subjects that contain no volume nodes under them."""
     shNode = slicer.mrmlScene.GetSubjectHierarchyNode()
     top_level_children = vtk.vtkIdList()
-    shNode.GetItemChildren(shNode.GetSceneItemID(), top_level_children, False) # last parameter is "recursive = False"
+    shNode.GetItemChildren(shNode.GetSceneItemID(), top_level_children, False)  # last parameter is "recursive = False"
     for i in range(top_level_children.GetNumberOfIds()):
         top_level_child = top_level_children.GetId(i)
         if shNode.GetItemLevel(top_level_child) == "Patient" and not shItem_has_volume_node_descendant(top_level_child):
@@ -406,7 +406,7 @@ class XrayCollection(dict):
     def __init__(self):
         super().__init__()
         self.xray_display_manager = XrayDisplayManager()
-        self.selected_name = None # This can be None or it can be the key of the currently selected xray
+        self.selected_name = None  # This can be None or it can be the key of the currently selected xray
 
     def clear(self):
         """Empty out the xray collection, cleaning up associated resources used in the scene."""
@@ -427,12 +427,12 @@ class XrayCollection(dict):
         for xray in xrays:
             if xray.name in self.keys():
                 raise Exception("Duplicate xray name has been encountered; names should be unique.")
-            self.update({xray.name : xray})
+            self.update({xray.name: xray})
 
     def selected_xray(self) -> Xray:
         return self[self.selected_name]
 
-    def select(self, name : str):
+    def select(self, name: str):
         """Select the xray of the given name, carrying out visibility changes in the scene as needed."""
         if self.selected_name is not None:
             self.xray_display_manager.set_xray_segmentation_visibility(self.selected_xray(), False)
@@ -440,7 +440,7 @@ class XrayCollection(dict):
         self.xray_display_manager.set_xray_segmentation_visibility(self.selected_xray(), True)
         self.xray_display_manager.show_xray(self.selected_xray())
 
-    def segment_selected(self, backend_to_use : str):
+    def segment_selected(self, backend_to_use: str):
         """Add a segmentation for the selected xray and make it the visible segmentation."""
         self.selected_xray().add_segmentation(backend_to_use)
 

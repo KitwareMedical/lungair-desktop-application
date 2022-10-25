@@ -12,7 +12,7 @@ class BusyCursor:
         return False
 
 
-def check_and_install_package(module_names, pip_install_name, pre_install_hook = None):
+def check_and_install_package(module_names, pip_install_name, pre_install_hook=None):
     """
     Check if given module can be imported, and if not then prompt user to possibly attempt an install.
 

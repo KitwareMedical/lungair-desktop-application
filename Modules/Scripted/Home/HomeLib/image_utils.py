@@ -7,7 +7,7 @@ from vtk.util.numpy_support import get_vtk_array_type, get_numpy_array_type
 # slicer.util.updateVolumeFromArray and slicer.util.updateSegmentBinaryLabelmapFromArray
 
 
-def create_image_data_from_numpy_array(array, oriented : bool, copy = True):
+def create_image_data_from_numpy_array(array, oriented: bool, copy=True):
     """Create a vtk image data object from a numpy array.
     A 2D numpy array will be turned into a single-axial-slice vtkImageData.
 
@@ -23,7 +23,7 @@ def create_image_data_from_numpy_array(array, oriented : bool, copy = True):
     # See the following for hints on how this works:
     # https://github.com/Kitware/VTK/blob/master/Wrapping/Python/vtkmodules/util/numpy_support.py
 
-    if (len(array.shape)!=2):
+    if (len(array.shape) != 2):
         raise ValueError(f"2D array was expected; got {len(array.shape)}D array")
 
     # Get type, e.g. vtk.VTK_FLOAT
@@ -63,7 +63,7 @@ def create_image_data_from_numpy_array(array, oriented : bool, copy = True):
     return imageData
 
 
-def create_volume_node_from_numpy_array(array, ijk_to_ras_directions, node_name : str):
+def create_volume_node_from_numpy_array(array, ijk_to_ras_directions, node_name: str):
     """Create a volume node and add it to the scene.
 
     Args:
@@ -74,22 +74,22 @@ def create_volume_node_from_numpy_array(array, ijk_to_ras_directions, node_name 
     Returns: the added vtkMRMLScalarVolumeNode
     """
 
-    imageData = create_image_data_from_numpy_array(array, oriented = False)
+    imageData = create_image_data_from_numpy_array(array, oriented=False)
 
     # Create and add a volume node to the scene, setting our vtkImageData to be its underlying image data
     volumeNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLScalarVolumeNode", node_name)
-    volumeNode.SetOrigin([0.,0.,0.])
-    volumeNode.SetSpacing([1.,1.,1.])
+    volumeNode.SetOrigin([0., 0., 0.])
+    volumeNode.SetSpacing([1., 1., 1.])
     volumeNode.SetIJKToRASDirections(ijk_to_ras_directions)
     volumeNode.SetAndObserveImageData(imageData)
     volumeNode.CreateDefaultDisplayNodes()
     defaultStorageNode = volumeNode.CreateDefaultStorageNode()
-    defaultStorageNode.UnRegister(None) # Needed to avoid memory leak. See https://github.com/Slicer/Slicer/issues/6099
+    defaultStorageNode.UnRegister(None)  # Needed to avoid memory leak. See https://github.com/Slicer/Slicer/issues/6099
 
     return volumeNode
 
 
-def create_segmentation_node_from_numpy_array(array, class_names : dict, node_name : str, vol_node):
+def create_segmentation_node_from_numpy_array(array, class_names: dict, node_name: str, vol_node):
     """Create a segmentation node and add it to the scene.
     Args:
       array: a contiguous 2D numpy array consisting of discrete class labels
@@ -100,15 +100,15 @@ def create_segmentation_node_from_numpy_array(array, class_names : dict, node_na
 
     Returns: the added vtkMRMLSegmentationNode
     """
-    ijk_to_ras_directions = np.zeros((3,3))
+    ijk_to_ras_directions = np.zeros((3, 3))
     vol_node.GetIJKToRASDirections(ijk_to_ras_directions)
 
     segNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLSegmentationNode", node_name)
     segNode.SetReferenceImageGeometryParameterFromVolumeNode(vol_node)
     segNode.CreateDefaultDisplayNodes()
     for class_label in class_names.keys():
-        binary_labelmap_array = (array==class_label).astype('int8')
-        orientedImageData = create_image_data_from_numpy_array(binary_labelmap_array, oriented = True)
+        binary_labelmap_array = (array == class_label).astype('int8')
+        orientedImageData = create_image_data_from_numpy_array(binary_labelmap_array, oriented=True)
         orientedImageData.SetDirections(ijk_to_ras_directions)
         segNode.AddSegmentFromBinaryLabelmapRepresentation(orientedImageData, class_names[class_label])
     return segNode

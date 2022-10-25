@@ -51,11 +51,11 @@ class SegmentationModel:
 
             # Transforms a given image to the input format expected by the segmentation network
             self.transform = monai.transforms.Compose([
-                monai.transforms.CastToType(dtype=np.float32), # TODO dtype should have been included in the model_dict
+                monai.transforms.CastToType(dtype=np.float32),  # TODO dtype should have been included in the model_dict
                 monai.transforms.AddChannel(),
                 monai.transforms.Resize(
-                    spatial_size=(self.image_size,self.image_size),
-                    mode = 'bilinear',
+                    spatial_size=(self.image_size, self.image_size),
+                    mode='bilinear',
                     align_corners=False
                 ),
                 monai.transforms.ToTensor()
@@ -97,12 +97,12 @@ class SegmentationModel:
             seg_net_output = self.seg_net(img_input.unsqueeze(0))[0]
 
             # assumption at the moment is that we have 2-channel image out (i.e. purely binary segmentation was done)
-            assert(seg_net_output.shape[0]==2)
+            assert(seg_net_output.shape[0] == 2)
 
             _, max_indices = seg_net_output.max(dim=0)
-            seg_mask = (max_indices==1).type(torch.uint8)
+            seg_mask = (max_indices == 1).type(torch.uint8)
 
-            model_to_img_matrix = np.diag(np.array(img.shape)/self.image_size)
+            model_to_img_matrix = np.diag(np.array(img.shape) / self.image_size)
 
             # TODO skipping post processing because post processing causes crash due to ITK
             # python issues seg_processed = self.seg_post_process(seg_mask)
