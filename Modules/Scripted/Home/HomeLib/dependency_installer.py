@@ -37,7 +37,9 @@ def check_and_install_package(module_names, pip_install_name, pre_install_hook=N
         slicer.util.infoDisplay("Modules found!\n" + version_text, "Modules Found")
         return True
     except ModuleNotFoundError as e1:
-        wantInstall = slicer.util.confirmYesNoDisplay(f"Package was not found. Install it?\nDetails of missing import: {e1}", "Missing Dependency")
+        wantInstall = slicer.util.confirmYesNoDisplay(
+            f"Package was not found. Install it?\nDetails of missing import: {e1}", "Missing Dependency"
+        )
         if wantInstall:
             if pre_install_hook is not None:
                 pre_install_hook()
@@ -58,8 +60,8 @@ def check_and_install_package(module_names, pip_install_name, pre_install_hook=N
 # with light-the-torch, the computation backend is auto-detected from the available hardware preferring CUDA over CPU.
 def monai_pre_install():
     with BusyCursor():
-        slicer.util.pip_install('light-the-torch')
-        slicer.util._executePythonModule('light_the_torch', ['install', 'monai'])
+        slicer.util.pip_install("light-the-torch")
+        slicer.util._executePythonModule("light_the_torch", ["install", "monai"])
 
 
 check_and_install_itk = functools.partial(check_and_install_package, ["itk"], "itk")

@@ -23,14 +23,14 @@ def create_image_data_from_numpy_array(array, oriented: bool, copy=True):
     # See the following for hints on how this works:
     # https://github.com/Kitware/VTK/blob/master/Wrapping/Python/vtkmodules/util/numpy_support.py
 
-    if (len(array.shape) != 2):
+    if len(array.shape) != 2:
         raise ValueError(f"2D array was expected; got {len(array.shape)}D array")
 
     # Get type, e.g. vtk.VTK_FLOAT
     vtk_type = get_vtk_array_type(array.dtype)
 
     # Ensure array was contiguous
-    assert(array.flags.c_contiguous)
+    assert array.flags.c_contiguous
 
     # Create a vtkDataArray of the correct size
     vtk_array = vtk.vtkDataArray.CreateDataArray(vtk_type)
@@ -40,7 +40,7 @@ def create_image_data_from_numpy_array(array, oriented: bool, copy=True):
     # I'm not certain that the following assert is needed, but if it ever fails then look here for hints:
     # https://github.com/Kitware/VTK/blob/0d344f312f143e7266ae10266f01470fb941ec96/Wrapping/Python/vtkmodules/util/numpy_support.py#L168
     arr_dtype = get_numpy_array_type(vtk_type)
-    assert(np.issubdtype(array.dtype, arr_dtype) or array.dtype == np.dtype(arr_dtype))
+    assert np.issubdtype(array.dtype, arr_dtype) or array.dtype == np.dtype(arr_dtype)
 
     # Set underlying data pointer of the vtkDataArray to point to the underlying data of the numpy array
     array_flat = np.ravel(array)
@@ -78,8 +78,8 @@ def create_volume_node_from_numpy_array(array, ijk_to_ras_directions, node_name:
 
     # Create and add a volume node to the scene, setting our vtkImageData to be its underlying image data
     volumeNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLScalarVolumeNode", node_name)
-    volumeNode.SetOrigin([0., 0., 0.])
-    volumeNode.SetSpacing([1., 1., 1.])
+    volumeNode.SetOrigin([0.0, 0.0, 0.0])
+    volumeNode.SetSpacing([1.0, 1.0, 1.0])
     volumeNode.SetIJKToRASDirections(ijk_to_ras_directions)
     volumeNode.SetAndObserveImageData(imageData)
     volumeNode.CreateDefaultDisplayNodes()
@@ -107,7 +107,7 @@ def create_segmentation_node_from_numpy_array(array, class_names: dict, node_nam
     segNode.SetReferenceImageGeometryParameterFromVolumeNode(vol_node)
     segNode.CreateDefaultDisplayNodes()
     for class_label in class_names.keys():
-        binary_labelmap_array = (array == class_label).astype('int8')
+        binary_labelmap_array = (array == class_label).astype("int8")
         orientedImageData = create_image_data_from_numpy_array(binary_labelmap_array, oriented=True)
         orientedImageData.SetDirections(ijk_to_ras_directions)
         segNode.AddSegmentFromBinaryLabelmapRepresentation(orientedImageData, class_names[class_label])

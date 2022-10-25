@@ -9,6 +9,7 @@ PLOT_TYPES = {
     "scatterbar": slicer.vtkMRMLPlotSeriesNode.PlotTypeScatterBar,
 }
 
+
 def createPlotView():
     """Create and return a qMRMLPlotView widget.
     It is associated to the main scene, and it also gets a button for fitToContent."""
@@ -19,7 +20,9 @@ def createPlotView():
     fit_plot_tool_button.clicked.connect(lambda: plot_view.fitToContent())
 
     # Put the QToolButton in the top right corner of the plot
-    assert(plot_view.layout() is None)  # failure here indicates a slicer change in which plot views gained layouts, which we should take care not to replace
+    assert (
+        plot_view.layout() is None
+    )  # failure here indicates a slicer change in which plot views gained layouts, which we should take care not to replace
     plot_view.setLayout(qt.QHBoxLayout())
     plot_view.layout().insertWidget(1, fit_plot_tool_button, 0, qt.Qt.AlignTop)
     spacer = qt.QSpacerItem(20, 20, qt.QSizePolicy.Expanding, qt.QSizePolicy.Expanding)
@@ -51,8 +54,9 @@ class SlicerPlotData:
         self.plot_view.setMRMLPlotViewNode(self.plot_view_node)
         self.plot_nodes = {}  # chart, table, and series; see the parameter "nodes" in the doc of slicer.util.plot
 
-
-    def set_plot_data(self, data, x_axis_label=None, y_axis_label=None, title=None, legend_label=None, plot_type="line", labels=None):
+    def set_plot_data(
+        self, data, x_axis_label=None, y_axis_label=None, title=None, legend_label=None, plot_type="line", labels=None
+    ):
         """
         Populate the plot with the data from the given numpy array.
 
@@ -66,8 +70,10 @@ class SlicerPlotData:
           labels: a list of string labels-- this affects bar and scatterbar plot types
         """
 
-        if title is None: title = self.name
-        if legend_label is None: legend_label = title
+        if title is None:
+            title = self.name
+        if legend_label is None:
+            legend_label = title
 
         if len(data.shape) != 2 or data.shape[1] != 2:
             raise ValueError(f"data was expected to be a numpy array of shape (N,2), got {tuple(data.shape)}")
@@ -83,15 +89,12 @@ class SlicerPlotData:
             columnNames = None
 
         plot_chart_node = slicer.util.plot(
-            data, 0, show=False,
-            title=title,
-            columnNames=columnNames,
-            nodes=self.plot_nodes
+            data, 0, show=False, title=title, columnNames=columnNames, nodes=self.plot_nodes
         )
         plot_chart_node.SetXAxisTitle(x_axis_label)
         if y_axis_label is not None:
             plot_chart_node.SetYAxisTitle(y_axis_label)
-        assert(len(self.plot_nodes["series"]) == 1)
+        assert len(self.plot_nodes["series"]) == 1
         self.plot_nodes["series"][0].SetName(legend_label)  # This text is displayed in the legend
         self.plot_nodes["series"][0].SetPlotType(PLOT_TYPES[plot_type])
         self.plot_view_node.SetPlotChartNodeID(plot_chart_node.GetID())
@@ -102,7 +105,7 @@ class SlicerPlotData:
                 labels_array.InsertNextValue(label)
             label_column_name = (x_axis_label if x_axis_label else "X-axis") + " Label"
             labels_array.SetName(label_column_name)
-            self.plot_nodes['table'].AddColumn(labels_array)
+            self.plot_nodes["table"].AddColumn(labels_array)
             self.plot_nodes["series"][0].SetLabelColumnName(label_column_name)
 
         self.plot_view.setMRMLPlotViewNode(self.plot_view_node)

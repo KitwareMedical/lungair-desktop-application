@@ -10,6 +10,7 @@ from HomeLib.plots import *
 import HomeLib.xray as xray
 from HomeLib.constants import *
 
+
 class Home(ScriptedLoadableModule):
     """Uses ScriptedLoadableModule base class, available at:
     https://github.com/Slicer/Slicer/blob/master/Base/Python/slicer/ScriptedLoadableModule.py
@@ -23,7 +24,9 @@ class Home(ScriptedLoadableModule):
         self.parent.contributors = ["Ebrahim Ebrahim (Kitware Inc.), Andinet Enquobahrie (Kitware Inc.)"]
         self.parent.helpText = """This is the Home module for LungAIR"""
         self.parent.helpText += self.getModuleDocumentationLink()
-        self.parent.acknowledgementText = """(TODO: put NIH grant number here)"""  # replace with organization, grant and thanks.
+        self.parent.acknowledgementText = (
+            """(TODO: put NIH grant number here)"""  # replace with organization, grant and thanks.
+        )
 
     def getModuleDocumentationLink(self):
         url = "https://github.com/KitwareMedical/lungair-desktop-application"  # Just link to repo for now
@@ -39,17 +42,18 @@ class HomeWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         ScriptedLoadableModuleWidget.__init__(self, parent)
         VTKObservationMixin.__init__(self)
 
-
     def setup(self):
         try:
             from HomeLib.segmentation_model import SegmentationModel
         except Exception as e:
             # We cannot use slicer.util.errorDisplay here because there is no main window (it will only log an error and not raise a popup).
             qt.QMessageBox.critical(
-                slicer.util.mainWindow(), "Error importing segmentation model",
-                "Error importing segmentation model. " +
-                "If python dependencies are not installed, install them and restart the application. \n" +
-                "Details: " + str(e)
+                slicer.util.mainWindow(),
+                "Error importing segmentation model",
+                "Error importing segmentation model. "
+                + "If python dependencies are not installed, install them and restart the application. \n"
+                + "Details: "
+                + str(e),
             )
             return False
 
@@ -75,10 +79,14 @@ class HomeWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         patientBrowserLayout.addRow(qt.QLabel(explanation))
         xrayDirectoryPathLineEdit = ctk.ctkPathLineEdit()
         xrayDirectoryPathLineEdit.filters = ctk.ctkPathLineEdit.Dirs
-        xrayDirectoryPathLineEdit.currentPath = "/home/ebrahim/Desktop/test_patient2"  # temporary measure to speed up testing
+        xrayDirectoryPathLineEdit.currentPath = (
+            "/home/ebrahim/Desktop/test_patient2"  # temporary measure to speed up testing
+        )
         csvDirectoryPathLineEdit = ctk.ctkPathLineEdit()
         csvDirectoryPathLineEdit.filters = ctk.ctkPathLineEdit.Dirs
-        csvDirectoryPathLineEdit.currentPath = "/home/ebrahim/data/eICU/eICU-Original-Data"  # temporary measure to speed up testing
+        csvDirectoryPathLineEdit.currentPath = (
+            "/home/ebrahim/data/eICU/eICU-Original-Data"  # temporary measure to speed up testing
+        )
         patientBrowserLayout.addRow("XRay Image Directory", xrayDirectoryPathLineEdit)
         patientBrowserLayout.addRow("eICU Data Directory", csvDirectoryPathLineEdit)
 
@@ -110,22 +118,28 @@ class HomeWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         featureComboBox = qt.QComboBox()
         featureComboBox.currentTextChanged.connect(self.onFeatureComboBoxTextChanged)
         advancedLayout.addRow("Feature extraction\nstep to display", featureComboBox)
+
         def add_install_button(package_name: str, install_function: str):
             installButton = qt.QPushButton(f"Check for {package_name} install")
             installButton.clicked.connect(lambda unused_arg: install_function())
             advancedLayout.addRow(installButton)
+
         add_install_button("MONAI", dependency_installer.check_and_install_monai)
         add_install_button("ITK-python", dependency_installer.check_and_install_itk)
         add_install_button("pandas", dependency_installer.check_and_install_pandas)
         add_install_button("matplotlib", dependency_installer.check_and_install_matplotlib)
         backendComboBox = qt.QComboBox()
-        backendComboBox.addItems([
-            SegmentationModel.ModelSource.LOCAL_WEIGHTS.value,
-            SegmentationModel.ModelSource.LOCAL_DEPLOY.value,
-            SegmentationModel.ModelSource.DOCKER_DEPLOY.value,
-        ])
+        backendComboBox.addItems(
+            [
+                SegmentationModel.ModelSource.LOCAL_WEIGHTS.value,
+                SegmentationModel.ModelSource.LOCAL_DEPLOY.value,
+                SegmentationModel.ModelSource.DOCKER_DEPLOY.value,
+            ]
+        )
+
         def backendChanged(index):
             self.backendToUse = SegmentationModel.ModelSource(backendComboBox.currentText)
+
         backendComboBox.currentIndexChanged.connect(backendChanged)
         backendLayout = qt.QHBoxLayout()
         backendLayout.addWidget(backendComboBox)
@@ -141,7 +155,6 @@ class HomeWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.xrayDirectoryPathLineEdit = xrayDirectoryPathLineEdit
         self.csvDirectoryPathLineEdit = csvDirectoryPathLineEdit
         self.xrayListWidget = xrayListWidget
-
 
         # Add custom toolbar with a settings button and then hide various Slicer UI elements
         self.modifyWindowUI()
@@ -171,7 +184,9 @@ class HomeWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     def onApplicationStartupCompleted(self):
         # Set initial size of the split view
         half_height = slicer.util.mainWindow().centralWidget().size.height() // 2
-        centralWidgetLayoutFrame = slicer.util.mainWindow().centralWidget().findChild(qt.QFrame, "CentralWidgetLayoutFrame")
+        centralWidgetLayoutFrame = (
+            slicer.util.mainWindow().centralWidget().findChild(qt.QFrame, "CentralWidgetLayoutFrame")
+        )
         splitter = centralWidgetLayoutFrame.findChild(qt.QSplitter)
         # For the splitter movement to work, we need to first let other events finish processing, hence the timer with timeout of 0
         qt.QTimer.singleShot(0, lambda: splitter.handle(1).moveSplitter(half_height))
@@ -196,7 +211,6 @@ class HomeWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
     def onSegmentSelectedClicked(self):
         self.logic.segmentSelected(self.backendToUse)
 
-
     def hideSlicerUI(self):
         slicer.util.setDataProbeVisible(False)
         slicer.util.setMenuBarsVisible(False)
@@ -204,11 +218,11 @@ class HomeWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         slicer.util.setModulePanelTitleVisible(False)
         slicer.util.setPythonConsoleVisible(False)
         slicer.util.setToolbarsVisible(True)
-        mainToolBar = slicer.util.findChild(slicer.util.mainWindow(), 'MainToolBar')
+        mainToolBar = slicer.util.findChild(slicer.util.mainWindow(), "MainToolBar")
         keepToolbars = [
             # slicer.util.findChild(slicer.util.mainWindow(), 'MainToolBar'),
             # slicer.util.findChild(slicer.util.mainWindow(), 'ViewToolBar'),
-            slicer.util.findChild(slicer.util.mainWindow(), 'CustomToolBar'),
+            slicer.util.findChild(slicer.util.mainWindow(), "CustomToolBar")
         ]
         slicer.util.setToolbarsVisible(False, keepToolbars)
 
@@ -220,21 +234,19 @@ class HomeWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         slicer.util.setPythonConsoleVisible(True)
         slicer.util.setToolbarsVisible(True)
 
-
-
     def modifyWindowUI(self):
         slicer.util.setModuleHelpSectionVisible(False)
 
-        mainToolBar = slicer.util.findChild(slicer.util.mainWindow(), 'MainToolBar')
+        mainToolBar = slicer.util.findChild(slicer.util.mainWindow(), "MainToolBar")
 
         self.CustomToolBar = qt.QToolBar("CustomToolBar")
         self.CustomToolBar.name = "CustomToolBar"
         slicer.util.mainWindow().insertToolBar(mainToolBar, self.CustomToolBar)
 
-        gearIcon = qt.QIcon(self.resourcePath('Icons/Gears.png'))
+        gearIcon = qt.QIcon(self.resourcePath("Icons/Gears.png"))
         self.settingsAction = self.CustomToolBar.addAction(gearIcon, "")
 
-        self.settingsDialog = slicer.util.loadUI(self.resourcePath('UI/Settings.ui'))
+        self.settingsDialog = slicer.util.loadUI(self.resourcePath("UI/Settings.ui"))
         self.settingsUI = slicer.util.childWidgetVariables(self.settingsDialog)
 
         self.settingsUI.CustomUICheckBox.toggled.connect(self.toggleUI)
@@ -243,12 +255,11 @@ class HomeWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
         self.settingsAction.triggered.connect(self.raiseSettings)
         self.hideSlicerUI()
 
-
     def toggleStyle(self, visible):
         if visible:
             self.applyApplicationStyle()
         else:
-            slicer.app.styleSheet = ''
+            slicer.app.styleSheet = ""
 
     def toggleUI(self, visible):
         if visible:
@@ -261,8 +272,7 @@ class HomeWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
 
     def applyApplicationStyle(self):
         # Style
-        self.applyStyle([slicer.app], 'Home.qss')
-
+        self.applyStyle([slicer.app], "Home.qss")
 
     def applyStyle(self, widgets, styleSheetName):
         stylesheetfile = self.resourcePath(styleSheetName)
@@ -290,7 +300,6 @@ def tableNodeFromDataFrame(df, editable=False):
 
     tableNode.SetLocked(not editable)
     return tableNode
-
 
 
 class ClinicalParametersTabWidget(qt.QTabWidget):  # TODO move this class to an appropriate place
@@ -331,10 +340,7 @@ class ClinicalParametersTabWidget(qt.QTabWidget):  # TODO move this class to an 
         """
 
         self.fio2_line_plot.set_plot_data(
-            data=fio2_data,
-            x_axis_label="time since unit admission (min)",
-            y_axis_label="FiO2 (%)",
-            title="FiO2",
+            data=fio2_data, x_axis_label="time since unit admission (min)", y_axis_label="FiO2 (%)", title="FiO2"
         )
 
     def set_fio2_bar_plot(self, bins, total_times):
@@ -352,8 +358,9 @@ class ClinicalParametersTabWidget(qt.QTabWidget):  # TODO move this class to an 
             title="FiO2 times",
             legend_label="Time (min)",
             plot_type="scatterbar",
-            labels=[f"{start} to {end}" for start, end in bins]
+            labels=[f"{start} to {end}" for start, end in bins],
         )
+
 
 class HomeLogic(ScriptedLoadableModuleLogic):
     """This class should implement all the actual
@@ -370,6 +377,7 @@ class HomeLogic(ScriptedLoadableModuleLogic):
         If ``status`` is ``slicer.util.EXIT_SUCCESS``, ``message`` is logged using ``logging.info(message)``
         otherwise it is logged using ``logging.error(message)``.
         """
+
         def _exitApplication():
             if message:
                 if status == slicer.util.EXIT_SUCCESS:
@@ -378,6 +386,7 @@ class HomeLogic(ScriptedLoadableModuleLogic):
                     logging.error(message)
             slicer.util.mainWindow().hide()
             slicer.util.exit(slicer.util.EXIT_FAILURE)
+
         qt.QTimer.singleShot(0, _exitApplication)
 
     def setup(self, layout_file_path, model_path, backend_to_use):
@@ -418,12 +427,14 @@ class HomeLogic(ScriptedLoadableModuleLogic):
         self.risk_analysis_widget = None
         for i in range(layoutManager.plotViewCount):
             plotWidget = layoutManager.plotWidget(i)
-            if plotWidget.name == 'qMRMLPlotWidgetClinicalParameters':
+            if plotWidget.name == "qMRMLPlotWidgetClinicalParameters":
                 self.clinical_parameters_widget = plotWidget
-            elif plotWidget.name == 'qMRMLPlotWidgetRiskAnalysis':
+            elif plotWidget.name == "qMRMLPlotWidgetRiskAnalysis":
                 self.risk_analysis_widget = plotWidget
             else:
-                logging.warn(f"Warning: Found an unexpected qMRMLPlotWidget named \"{plotWidget.name}\"; there may be UI setup issues.")
+                logging.warn(
+                    f'Warning: Found an unexpected qMRMLPlotWidget named "{plotWidget.name}"; there may be UI setup issues.'
+                )
 
             # we use plotview widgets as placeholders that we can replace with our own custom "view",
             # so we don't actually care about the plot view
@@ -453,12 +464,13 @@ class HomeLogic(ScriptedLoadableModuleLogic):
         self.clinical_parameters_widget.layout().addWidget(self.clinical_parameters_tabWidget)
         self.risk_analysis_widget.layout().addWidget(self.risk_analysis_tabWidget)
 
-
         # ------------------------
         # Set up workspace directory
         # ------------------------
 
-        self.workspace_dir = os.path.join(slicer.util.settingsValue("DefaultScenePath", None), "LungAIR-Application-Workspace")
+        self.workspace_dir = os.path.join(
+            slicer.util.settingsValue("DefaultScenePath", None), "LungAIR-Application-Workspace"
+        )
         os.makedirs(self.workspace_dir, exist_ok=True)
 
         # ------------------------
@@ -477,10 +489,12 @@ class HomeLogic(ScriptedLoadableModuleLogic):
         except Exception as e:
             # We cannot use slicer.util.errorDisplay here because there is no main window (it will only log an error and not raise a popup).
             qt.QMessageBox.critical(
-                slicer.util.mainWindow(), "Error importing segmentation model",
-                "Error importing segmentation model. " +
-                "If python dependencies are not installed, install them and restart the application. \n" +
-                "Details: " + str(e)
+                slicer.util.mainWindow(),
+                "Error importing segmentation model",
+                "Error importing segmentation model. "
+                + "If python dependencies are not installed, install them and restart the application. \n"
+                + "Details: "
+                + str(e),
             )
             return False
         self.seg_model = dict(model_path=model_path, model=SegmentationModel(model_path, backend_to_use))
@@ -492,10 +506,12 @@ class HomeLogic(ScriptedLoadableModuleLogic):
             from HomeLib.eicu import Eicu
         except Exception as e:
             qt.QMessageBox.critical(
-                slicer.util.mainWindow(), "Error importing eICU interface class",
-                "Error importing eICU interface class. " +
-                "If python dependencies are not installed, install them and restart the application. \n" +
-                "Details: " + str(e)
+                slicer.util.mainWindow(),
+                "Error importing eICU interface class",
+                "Error importing eICU interface class. "
+                + "If python dependencies are not installed, install them and restart the application. \n"
+                + "Details: "
+                + str(e),
             )
             return False
 
@@ -504,7 +520,6 @@ class HomeLogic(ScriptedLoadableModuleLogic):
         # ------------------------
 
         slicer.util.mainWindow().pythonConsole().setStyleSheet(f"background-color: #FFFFFF")
-
 
         return True
 
@@ -525,7 +540,7 @@ class HomeLogic(ScriptedLoadableModuleLogic):
         self.xray_collection.segment_selected(backend_to_use)
 
     def loadEICUFromDirectory(self, dir_path: str, schema_dir: str):
-        """ As a placeholder to get some EHR data to play with, we use the eICU dataset.
+        """As a placeholder to get some EHR data to play with, we use the eICU dataset.
         See https://eicu-crd.mit.edu/about/eicu/
         It's not NICU-focused or even pediatric-focused, but it's something to work with for now.
 
@@ -534,12 +549,16 @@ class HomeLogic(ScriptedLoadableModuleLogic):
           schema_dir : path to the directory that contains table schema text files; see EICU class documentation for details.
         """
         import pandas as pd
+
         if not hasattr(self, "eicu") or not self.eicu:
             from HomeLib.eicu import Eicu
+
             self.eicu = Eicu(dir_path, schema_dir)
         self.unitstay_id = self.eicu.get_random_unitstay()
-        print(f"We will pretend that this patient is {self.eicu.get_patient_id_from_unitstay(self.unitstay_id)} from the eICU dataset,"
-              + f" with unit stay ID {self.unitstay_id}.")
+        print(
+            f"We will pretend that this patient is {self.eicu.get_patient_id_from_unitstay(self.unitstay_id)} from the eICU dataset,"
+            + f" with unit stay ID {self.unitstay_id}."
+        )
 
         fio2_data, average_fio2, bins, total_times = self.eicu.process_fio2_data_for_unitstay(self.unitstay_id)
 
@@ -551,6 +570,7 @@ class HomeLogic(ScriptedLoadableModuleLogic):
         self.clinical_parameters_tabWidget.set_fio2_line_plot(fio2_data.to_numpy())
         self.clinical_parameters_tabWidget.set_fio2_bar_plot(bins, total_times)
 
+
 class HomeTest(ScriptedLoadableModuleTest):
     """
     This is the test case for your scripted module.
@@ -559,18 +579,16 @@ class HomeTest(ScriptedLoadableModuleTest):
     """
 
     def setUp(self):
-        """ Do whatever is needed to reset the state - typically a scene clear will be enough.
-        """
+        """Do whatever is needed to reset the state - typically a scene clear will be enough."""
         slicer.mrmlScene.Clear(0)
 
     def runTest(self):
-        """Run as few or as many tests as needed here.
-        """
+        """Run as few or as many tests as needed here."""
         self.setUp()
         self.test_Home1()
 
     def test_Home1(self):
-        """ Ideally you should have several levels of tests.  At the lowest level
+        """Ideally you should have several levels of tests.  At the lowest level
         tests should exercise the functionality of the logic with different inputs
         (both valid and invalid).  At higher levels your tests should emulate the
         way the user would interact with your code and confirm that it still works
@@ -587,7 +605,7 @@ class HomeTest(ScriptedLoadableModuleTest):
         #
 
         logic = HomeLogic()
-        self.delayDisplay('Test passed!')
+        self.delayDisplay("Test passed!")
 
 
 #

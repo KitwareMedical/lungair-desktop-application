@@ -16,33 +16,11 @@ format = pylint
 exclude = .git,__pycache__
 
 ignore = \
-  # expected 2 blank lines, found 1
-  E302, \
-  # too many blank lines
-  E303, \
-  # expected 2 blank lines after class or function definition
-  E305, \
-  # expected 1 blank line before a nested definition
-  E306, \
-  # multiple imports on one line
-  E401, \
-  # multiple statements on one line (colon)
-  E701, \
-  # ambiguous variable name 'l'
-  E741, \
   # imported but unused
   F401, \
-  # import shadowed by loop variable
-  F402, \
   # 'from module import *' used; unable to detect undefined names
   F403, \
   # Name may be undefined, or defined from star import
   F405, \
-  # f-string is missing placeholders
-  F541, \
-  # local variable is assigned to but never used
-  F841, \
   # line break before binary operator
-  W503, \
-  # line break after binary operator
-  W504
+  W503

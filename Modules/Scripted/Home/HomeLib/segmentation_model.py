@@ -18,12 +18,12 @@ from .segmentation_post_processing import SegmentationPostProcessing
 class SegmentationModel:
     class NoValue(enum.Enum):
         def __repr__(self):
-            return '<%s.%s>' % (self.__class__.__name__, self.name)
+            return "<%s.%s>" % (self.__class__.__name__, self.name)
 
     class ModelSource(NoValue):
-        LOCAL_WEIGHTS = 'Locally saved model weights, without MONAI deploy'
-        LOCAL_DEPLOY = 'MONAI Deploy with locally saved model weights'
-        DOCKER_DEPLOY = 'MONAI Deploy with docker image'
+        LOCAL_WEIGHTS = "Locally saved model weights, without MONAI deploy"
+        LOCAL_DEPLOY = "MONAI Deploy with locally saved model weights"
+        DOCKER_DEPLOY = "MONAI Deploy with docker image"
 
     def __init__(self, load_pth_path, backend_to_use):
         """
@@ -38,35 +38,39 @@ class SegmentationModel:
         self.save_zip_path = re.sub(r"\.pth$", "", self.load_pth_path) + ".zip"
 
         if self.model_source == self.ModelSource.LOCAL_WEIGHTS:
-            model_dict = torch.load(self.load_pth_path, map_location=torch.device('cpu'))
+            model_dict = torch.load(self.load_pth_path, map_location=torch.device("cpu"))
 
-            self.seg_net = model_dict['model']
-            self.learning_rate = model_dict['learning_rate']
-            self.training_losses = model_dict['training_losses']
-            self.validation_losses = model_dict['validation_losses']
-            self.epoch_number = model_dict['epoch_number']
-            self.best_validation_loss = model_dict['best_validation_loss']
-            self.best_validation_epoch = model_dict['best_validation_epoch']
-            self.image_size = model_dict['image_size']
+            self.seg_net = model_dict["model"]
+            self.learning_rate = model_dict["learning_rate"]
+            self.training_losses = model_dict["training_losses"]
+            self.validation_losses = model_dict["validation_losses"]
+            self.epoch_number = model_dict["epoch_number"]
+            self.best_validation_loss = model_dict["best_validation_loss"]
+            self.best_validation_epoch = model_dict["best_validation_epoch"]
+            self.image_size = model_dict["image_size"]
 
             # Transforms a given image to the input format expected by the segmentation network
-            self.transform = monai.transforms.Compose([
-                monai.transforms.CastToType(dtype=np.float32),  # TODO dtype should have been included in the model_dict
-                monai.transforms.AddChannel(),
-                monai.transforms.Resize(
-                    spatial_size=(self.image_size, self.image_size),
-                    mode='bilinear',
-                    align_corners=False
-                ),
-                monai.transforms.ToTensor()
-            ])
+            self.transform = monai.transforms.Compose(
+                [
+                    monai.transforms.CastToType(
+                        dtype=np.float32
+                    ),  # TODO dtype should have been included in the model_dict
+                    monai.transforms.AddChannel(),
+                    monai.transforms.Resize(
+                        spatial_size=(self.image_size, self.image_size), mode="bilinear", align_corners=False
+                    ),
+                    monai.transforms.ToTensor(),
+                ]
+            )
 
             self.seg_post_process = SegmentationPostProcessing()
 
-        if self.model_source in (self.ModelSource.LOCAL_DEPLOY, self.ModelSource.DOCKER_DEPLOY) and not os.path.exists(self.save_zip_path):
+        if self.model_source in (self.ModelSource.LOCAL_DEPLOY, self.ModelSource.DOCKER_DEPLOY) and not os.path.exists(
+            self.save_zip_path
+        ):
             # Write out a TorchScript version of the model, for use in MONAI Deploy.
-            model_dict = torch.load(self.load_pth_path, map_location=torch.device('cpu'))
-            seg_net = model_dict['model']
+            model_dict = torch.load(self.load_pth_path, map_location=torch.device("cpu"))
+            seg_net = model_dict["model"]
             # set dropout and batch normalization layers to evaluation mode before running
             # inference
             seg_net.eval()
@@ -97,7 +101,7 @@ class SegmentationModel:
             seg_net_output = self.seg_net(img_input.unsqueeze(0))[0]
 
             # assumption at the moment is that we have 2-channel image out (i.e. purely binary segmentation was done)
-            assert(seg_net_output.shape[0] == 2)
+            assert seg_net_output.shape[0] == 2
 
             _, max_indices = seg_net_output.max(dim=0)
             seg_mask = (max_indices == 1).type(torch.uint8)
@@ -125,11 +129,17 @@ class SegmentationModel:
             monai_deploy_path = shutil.which("monai-deploy")
             if self.model_source == self.ModelSource.LOCAL_DEPLOY:
                 deploy_app_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "deploy_app.py")
-                process_image_command = [monai_deploy_path,
-                                         "exec", deploy_app_path,
-                                         "-m", self.save_zip_path,
-                                         "-i", input_dir_path,
-                                         "-o", output_dir_path]
+                process_image_command = [
+                    monai_deploy_path,
+                    "exec",
+                    deploy_app_path,
+                    "-m",
+                    self.save_zip_path,
+                    "-i",
+                    input_dir_path,
+                    "-o",
+                    output_dir_path,
+                ]
             if self.model_source == self.ModelSource.DOCKER_DEPLOY:
                 # TODO: Unfortunately, this docker image appears to require CUDA>=11.3.
                 docker_image = "ghcr.io/kitwaremedical/lungair-desktop-application/lung_air_model_deploy:latest"
@@ -137,9 +147,7 @@ class SegmentationModel:
                 # f"{monai_deploy_path} package {deploy_app_path} --tag {docker_image} --model {self.save_zip_path}"
                 # f"echo {CR_PAT} | docker login -u {User} --password-stdin ghcr.io"
                 # f"docker push {docker_image}"
-                process_image_command = [monai_deploy_path,
-                                         "run", docker_image,
-                                         input_dir_path, output_dir_path]
+                process_image_command = [monai_deploy_path, "run", docker_image, input_dir_path, output_dir_path]
             proc = slicer.util.launchConsoleProcess(process_image_command, useStartupEnvironment=False)
             slicer.util.logProcessOutput(proc)
 
