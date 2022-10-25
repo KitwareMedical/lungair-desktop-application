@@ -1,4 +1,3 @@
-from genericpath import exists
 import os
 import vtk, qt, ctk, slicer
 from slicer.ScriptedLoadableModule import *
@@ -489,7 +488,7 @@ class HomeLogic(ScriptedLoadableModuleLogic):
         # Check for eicu dependencies
         # ------------------------
         try:
-            from HomeLib.eicu import Eicu
+            from HomeLib.eicu import Eicu  # noqa: F401
         except Exception as e:
             qt.QMessageBox.critical(
                 slicer.util.mainWindow(), "Error importing eICU interface class",

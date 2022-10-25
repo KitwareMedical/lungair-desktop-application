@@ -30,8 +30,6 @@ ignore = \
   E701, \
   # ambiguous variable name 'l'
   E741, \
-  # imported but unused
-  F401, \
   # import shadowed by loop variable
   F402, \
   # 'from module import *' used; unable to detect undefined names
