@@ -267,8 +267,9 @@ class Xray:
         # Verify that the underlying vtk image data has directions matrix equal to the identity.
         # (I'm pretty sure the vtkMRMLVolumeNode::Get<*>ToRASDirection functions don't care about the vtkImageData directions matrix)
         if not volume_node.GetImageData().GetDirectionMatrix().IsIdentity():
-            logging.warning(f"The underlying vtkImageData of volume node {volume_node.GetName()} appears to have a nontrivial direction matrix. "+
-                            "Slicer might not provide accurate RAS directions in this situation, so there may be issues with producing a correctly oriented 2D array.")
+            logging.warning(f"The underlying vtkImageData of volume node {volume_node.GetName()} appears to have a nontrivial direction matrix. " +
+                            "Slicer might not provide accurate RAS directions in this situation, " +
+                            "so there may be issues with producing a correctly oriented 2D array.")
 
         # The vtkMRMLVolumeNode::Get<*>ToRASDirection functions take an output parameter
         k_dir = np.zeros(3)

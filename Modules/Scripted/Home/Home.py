@@ -45,9 +45,12 @@ class HomeWidget(ScriptedLoadableModuleWidget, VTKObservationMixin):
             from HomeLib.segmentation_model import SegmentationModel
         except Exception as e:
             # We cannot use slicer.util.errorDisplay here because there is no main window (it will only log an error and not raise a popup).
-            qt.QMessageBox.critical(slicer.util.mainWindow(), "Error importing segmentation model",
-                                    "Error importing segmentation model. If python dependencies are not installed, install them and restart the application. \nDetails: "+str(e)
-                                    )
+            qt.QMessageBox.critical(
+                slicer.util.mainWindow(), "Error importing segmentation model",
+                "Error importing segmentation model. " +
+                "If python dependencies are not installed, install them and restart the application. \n" +
+                "Details: " + str(e)
+            )
             return False
 
         ScriptedLoadableModuleWidget.setup(self)
@@ -473,9 +476,12 @@ class HomeLogic(ScriptedLoadableModuleLogic):
             from HomeLib.segmentation_model import SegmentationModel
         except Exception as e:
             # We cannot use slicer.util.errorDisplay here because there is no main window (it will only log an error and not raise a popup).
-            qt.QMessageBox.critical(slicer.util.mainWindow(), "Error importing segmentation model",
-                                    "Error importing segmentation model. If python dependencies are not installed, install them and restart the application. \nDetails: "+str(e)
-                                    )
+            qt.QMessageBox.critical(
+                slicer.util.mainWindow(), "Error importing segmentation model",
+                "Error importing segmentation model. " +
+                "If python dependencies are not installed, install them and restart the application. \n" +
+                "Details: " + str(e)
+            )
             return False
         self.seg_model = dict(model_path=model_path, model=SegmentationModel(model_path, backend_to_use))
 
@@ -485,9 +491,12 @@ class HomeLogic(ScriptedLoadableModuleLogic):
         try:
             from HomeLib.eicu import Eicu
         except Exception as e:
-            qt.QMessageBox.critical(slicer.util.mainWindow(), "Error importing eICU interface class",
-                                    "Error importing eICU interface class. If python dependencies are not installed, install them and restart the application. \nDetails: "+str(e)
-                                    )
+            qt.QMessageBox.critical(
+                slicer.util.mainWindow(), "Error importing eICU interface class",
+                "Error importing eICU interface class. " +
+                "If python dependencies are not installed, install them and restart the application. \n" +
+                "Details: " + str(e)
+            )
             return False
 
         # ------------------------
