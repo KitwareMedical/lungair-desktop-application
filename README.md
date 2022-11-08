@@ -25,6 +25,12 @@ Launch the application from the executable `LungAIR-SuperBuild/Slicer-build/Lung
 
 _(to be written)_
 
+
+
+## Acknowledgments
+
+This work was supported by the National Institutes of Health under Award Number R42HL145669. The content is solely the responsibility of the authors and does not necessarily represent the official views of the National Institutes of Health.
+
 ---
 
 ![LungAIR by Kitware, Inc.](Applications/LungAIRApp/Resources/Images/LogoFull.png?raw=true)
