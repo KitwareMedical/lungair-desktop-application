@@ -23,7 +23,9 @@ class Home(ScriptedLoadableModule):
         self.parent.contributors = ["Ebrahim Ebrahim (Kitware Inc.), Andinet Enquobahrie (Kitware Inc.)"]
         self.parent.helpText = """This is the Home module for LungAIR"""
         self.parent.helpText += self.getModuleDocumentationLink()
-        self.parent.acknowledgementText = """(TODO: put NIH grant number here)"""  # replace with organization, grant and thanks.
+        self.parent.acknowledgementText = ("""This work was supported by the National Institutes of Health under Award Number R42HL145669. """
+                                           """The content is solely the responsibility of the authors and does not necessarily represent """
+                                           """the official views of the National Institutes of Health.""")
 
     def getModuleDocumentationLink(self):
         url = "https://github.com/KitwareMedical/lungair-desktop-application"  # Just link to repo for now
