@@ -21,7 +21,7 @@ class SegmentationModel:
             return f'<{self.__class__.__name__}.{self.name}>'
 
     class ModelSource(NoValue):
-        LOCAL_WEIGHTS = 'Locally saved model weights, without MONAI deploy'
+        LOCAL_WEIGHTS = 'Locally saved model weights, without MONAI Deploy'
         LOCAL_DEPLOY = 'MONAI Deploy with locally saved model weights'
         DOCKER_DEPLOY = 'MONAI Deploy with docker image'
 

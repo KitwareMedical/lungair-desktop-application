@@ -23,9 +23,34 @@ Launch the application from the executable `LungAIR-SuperBuild/Slicer-build/Lung
 
 ## Using the MONAI Deploy docker image
 
-_(to be written)_
+By default, the LungAir application runs the underlying MONAI Torch model with "Locally saved model weights, without MONAI Deploy".  To instead use "MONAI Deploy with locally saved model weights" or "MONAI Deploy with docker image", select that option for the "Backend model" in the Advanced section in the lower left of the main screen.  If you have not yet created a docker image to use, you will need to do that first, with commands similar to:
 
+```shell
+# Useful directory and paths
+cd lungair-desktop-application
+DEPLOY_APP='Modules/Scripted/Home/HomeLib/deploy_app.py'
+MODEL_PATH='Modules/Scripted/Home/Resources/PyTorchModels/LungSegmentation/model0018.zip'
+DOCKER_BASE='nvcr.io/nvidia/pytorch:22.09-py3'
+# Choose a name for your new docker image
+NEW_DOCKER='my_deployed_model:latest'
 
+# Build a docker image to be deployed
+monai-deploy package $DEPLOY_APP --model $MODEL_PATH -b $DOCKER_BASE --tag $NEW_DOCKER
+```
+Note that the specified $DOCKER_BASE was current as of September, 2022.  It may be wise to update this to a later date or to eliminate the "-b" option entirely and accept the default.
+
+This docker image can also be used from the command line to run the model.  Place the image to be analyzed in an otherwise empty input directory of your choosing.  The resulting output mask and scaling matrix will be placed in the output directory of your choosing.
+
+```shell
+# Run the model using the created docker image
+monai-deploy run $NEW_DOCKER input_directory output_directory
+```
+
+Note that the model also can be run from the command line without using the docker image.
+```shell
+# Run the deployed application in the local environment
+monai-deploy exec $DEPLOY_APP -m $MODEL_PATH -i input_directory -o output_directory
+```
 
 ## Acknowledgments
 
@@ -34,4 +59,3 @@ This work was supported by the National Institutes of Health under Award Number 
 ---
 
 ![LungAIR by Kitware, Inc.](Applications/LungAIRApp/Resources/Images/LogoFull.png?raw=true)
-
