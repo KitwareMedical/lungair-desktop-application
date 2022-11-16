@@ -9,6 +9,8 @@ _This project is in active development and may change from version to version wi
 
 ## Building on Linux
 
+Detailed build instructions can be found in [BUILD.md](BUILD.md), but here is the short version:
+
 The build process is similar to [that of Slicer](https://slicer.readthedocs.io/en/latest/developer_guide/build_instructions/linux.html#pre-requisites). Currently this application is only being tested for Linux, though it may work on other platforms if the appropriate Slicer build instructions are followed.
 
 Once the needed dependencies are installed (including Qt) following the [Slicer build instructions](https://slicer.readthedocs.io/en/latest/developer_guide/build_instructions/linux.html#pre-requisites), the basic build process is as follows:
